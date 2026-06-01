@@ -1,0 +1,150 @@
+{
+  "name": "dut_config_AS_QRC",
+  "elements": {
+    "c34": {
+      "name": "c34",
+      "element_type": "FluxTunableTransmonElement",
+      "reset": { "name": "reset", "duration": 0.0005 },
+      "rxy": { "name": "rxy", "amp180": 0.0, "beta": 0.0, "duration": 1e-7, "reference_magnitude": { "name": "reference_magnitude", "dBm": NaN, "V": NaN, "A": NaN } },
+      "measure": { "name": "measure", "pulse_type": "SquarePulse", "pulse_amp": 0.2, "pulse_duration": 5e-7, "acq_channel": 0, "acq_delay": 2.05e-7, "integration_time": 5e-7, "reset_clock_phase": true, "acq_weights_a": { "data": "", "shape": [ 0 ], "dtype": "float64" }, "acq_weights_b": { "data": "", "shape": [ 0 ], "dtype": "float64" }, "acq_weights_sampling_rate": 1.0, "acq_weight_type": "SSB", "acq_rotation": 0.0, "acq_threshold": 0.0, "num_points": 1, "reference_magnitude": { "name": "reference_magnitude", "dBm": NaN, "V": NaN, "A": NaN } },
+      "pulse_compensation": { "name": "pulse_compensation", "max_compensation_amp": 0.0, "time_grid": 0.0, "sampling_rate": 0.0 },
+      "ports": { "name": "ports", "microwave": "c34:mw_unused", "flux": "c34:fl", "readout": "c34:res_unused" },
+      "clock_freqs": { "name": "clock_freqs", "f01": 0.0, "f12": 0.0, "readout": 0.0 },
+      "flux_params": { "name": "flux_params", "sweet_spot": 0.0, "flux_period": 1.2, "asymmetry": 0.05, "crosstalk_vector": {} },
+      "pi_half": { "name": "pi_half", "amp90": 0.0 }
+    },
+    "c45": {
+      "name": "c45",
+      "element_type": "FluxTunableTransmonElement",
+      "reset": { "name": "reset", "duration": 0.0005 },
+      "rxy": { "name": "rxy", "amp180": 0.0, "beta": 0.0, "duration": 1e-7, "reference_magnitude": { "name": "reference_magnitude", "dBm": NaN, "V": NaN, "A": NaN } },
+      "measure": { "name": "measure", "pulse_type": "SquarePulse", "pulse_amp": 0.2, "pulse_duration": 5e-7, "acq_channel": 0, "acq_delay": 2.05e-7, "integration_time": 5e-7, "reset_clock_phase": true, "acq_weights_a": { "data": "", "shape": [ 0 ], "dtype": "float64" }, "acq_weights_b": { "data": "", "shape": [ 0 ], "dtype": "float64" }, "acq_weights_sampling_rate": 1.0, "acq_weight_type": "SSB", "acq_rotation": 0.0, "acq_threshold": 0.0, "num_points": 1, "reference_magnitude": { "name": "reference_magnitude", "dBm": NaN, "V": NaN, "A": NaN } },
+      "pulse_compensation": { "name": "pulse_compensation", "max_compensation_amp": 0.0, "time_grid": 0.0, "sampling_rate": 0.0 },
+      "ports": { "name": "ports", "microwave": "c45:mw_unused", "flux": "c45:fl", "readout": "c45:res_unused" },
+      "clock_freqs": { "name": "clock_freqs", "f01": 0.0, "f12": 0.0, "readout": 0.0 },
+      "flux_params": { "name": "flux_params", "sweet_spot": 0.0, "flux_period": 1.2, "asymmetry": 0.05, "crosstalk_vector": {} },
+      "pi_half": { "name": "pi_half", "amp90": 0.0 }
+    },
+    "c56": {
+      "name": "c56",
+      "element_type": "FluxTunableTransmonElement",
+      "reset": { "name": "reset", "duration": 0.0005 },
+      "rxy": { "name": "rxy", "amp180": 0.0, "beta": 0.0, "duration": 1e-7, "reference_magnitude": { "name": "reference_magnitude", "dBm": NaN, "V": NaN, "A": NaN } },
+      "measure": { "name": "measure", "pulse_type": "SquarePulse", "pulse_amp": 0.2, "pulse_duration": 5e-7, "acq_channel": 0, "acq_delay": 2.05e-7, "integration_time": 5e-7, "reset_clock_phase": true, "acq_weights_a": { "data": "", "shape": [ 0 ], "dtype": "float64" }, "acq_weights_b": { "data": "", "shape": [ 0 ], "dtype": "float64" }, "acq_weights_sampling_rate": 1.0, "acq_weight_type": "SSB", "acq_rotation": 0.0, "acq_threshold": 0.0, "num_points": 1, "reference_magnitude": { "name": "reference_magnitude", "dBm": NaN, "V": NaN, "A": NaN } },
+      "pulse_compensation": { "name": "pulse_compensation", "max_compensation_amp": 0.0, "time_grid": 0.0, "sampling_rate": 0.0 },
+      "ports": { "name": "ports", "microwave": "c56:mw_unused", "flux": "c56:fl", "readout": "c56:res_unused" },
+      "clock_freqs": { "name": "clock_freqs", "f01": 0.0, "f12": 0.0, "readout": 0.0 },
+      "flux_params": { "name": "flux_params", "sweet_spot": 0.0, "flux_period": 1.2, "asymmetry": 0.05, "crosstalk_vector": {} },
+      "pi_half": { "name": "pi_half", "amp90": 0.0 }
+    },
+    "c67": {
+      "name": "c67",
+      "element_type": "FluxTunableTransmonElement",
+      "reset": { "name": "reset", "duration": 0.0005 },
+      "rxy": { "name": "rxy", "amp180": 0.0, "beta": 0.0, "duration": 1e-7, "reference_magnitude": { "name": "reference_magnitude", "dBm": NaN, "V": NaN, "A": NaN } },
+      "measure": { "name": "measure", "pulse_type": "SquarePulse", "pulse_amp": 0.2, "pulse_duration": 5e-7, "acq_channel": 0, "acq_delay": 2.05e-7, "integration_time": 5e-7, "reset_clock_phase": true, "acq_weights_a": { "data": "", "shape": [ 0 ], "dtype": "float64" }, "acq_weights_b": { "data": "", "shape": [ 0 ], "dtype": "float64" }, "acq_weights_sampling_rate": 1.0, "acq_weight_type": "SSB", "acq_rotation": 0.0, "acq_threshold": 0.0, "num_points": 1, "reference_magnitude": { "name": "reference_magnitude", "dBm": NaN, "V": NaN, "A": NaN } },
+      "pulse_compensation": { "name": "pulse_compensation", "max_compensation_amp": 0.0, "time_grid": 0.0, "sampling_rate": 0.0 },
+      "ports": { "name": "ports", "microwave": "c67:mw_unused", "flux": "c67:fl", "readout": "c67:res_unused" },
+      "clock_freqs": { "name": "clock_freqs", "f01": 0.0, "f12": 0.0, "readout": 0.0 },
+      "flux_params": { "name": "flux_params", "sweet_spot": 0.0, "flux_period": 1.2, "asymmetry": 0.05, "crosstalk_vector": {} },
+      "pi_half": { "name": "pi_half", "amp90": 0.0 }
+    },
+    "c78": {
+      "name": "c78",
+      "element_type": "FluxTunableTransmonElement",
+      "reset": { "name": "reset", "duration": 0.0005 },
+      "rxy": { "name": "rxy", "amp180": 0.0, "beta": 0.0, "duration": 1e-7, "reference_magnitude": { "name": "reference_magnitude", "dBm": NaN, "V": NaN, "A": NaN } },
+      "measure": { "name": "measure", "pulse_type": "SquarePulse", "pulse_amp": 0.2, "pulse_duration": 5e-7, "acq_channel": 0, "acq_delay": 2.05e-7, "integration_time": 5e-7, "reset_clock_phase": true, "acq_weights_a": { "data": "", "shape": [ 0 ], "dtype": "float64" }, "acq_weights_b": { "data": "", "shape": [ 0 ], "dtype": "float64" }, "acq_weights_sampling_rate": 1.0, "acq_weight_type": "SSB", "acq_rotation": 0.0, "acq_threshold": 0.0, "num_points": 1, "reference_magnitude": { "name": "reference_magnitude", "dBm": NaN, "V": NaN, "A": NaN } },
+      "pulse_compensation": { "name": "pulse_compensation", "max_compensation_amp": 0.0, "time_grid": 0.0, "sampling_rate": 0.0 },
+      "ports": { "name": "ports", "microwave": "c78:mw_unused", "flux": "c78:fl", "readout": "c78:res_unused" },
+      "clock_freqs": { "name": "clock_freqs", "f01": 0.0, "f12": 0.0, "readout": 0.0 },
+      "flux_params": { "name": "flux_params", "sweet_spot": 0.0, "flux_period": 1.2, "asymmetry": 0.05, "crosstalk_vector": {} },
+      "pi_half": { "name": "pi_half", "amp90": 0.0 }
+    },
+    "q4": {
+      "name": "q4",
+      "element_type": "FluxTunableTransmonElement",
+      "reset": { "name": "reset", "duration": 0.0005 },
+      "rxy": { "name": "rxy", "amp180": 0.5521900031075424, "beta": 0.0, "duration": 1e-7, "reference_magnitude": { "name": "reference_magnitude", "dBm": NaN, "V": NaN, "A": NaN } },
+      "measure": { "name": "measure", "pulse_type": "SquarePulse", "pulse_amp": 0.05, "pulse_duration": 5e-7, "acq_channel": 0, "acq_delay": 3.59e-7, "integration_time": 5e-7, "reset_clock_phase": true, "acq_weights_a": { "data": "", "shape": [ 0 ], "dtype": "float64" }, "acq_weights_b": { "data": "", "shape": [ 0 ], "dtype": "float64" }, "acq_weights_sampling_rate": 1.0, "acq_weight_type": "SSB", "acq_rotation": 0.0, "acq_threshold": 0.0, "num_points": 1, "reference_magnitude": { "name": "reference_magnitude", "dBm": NaN, "V": NaN, "A": NaN } },
+      "pulse_compensation": { "name": "pulse_compensation", "max_compensation_amp": 0.0, "time_grid": 0.0, "sampling_rate": 0.0 },
+      "ports": { "name": "ports", "microwave": "q4:mw", "flux": "q4:fl", "readout": "q4:res" },
+      "clock_freqs": { "name": "clock_freqs", "f01": 3948300000.0, "f12": 0.0, "readout": 6099994568.776767 },
+      "flux_params": { "name": "flux_params", "sweet_spot": 0.11651117809967015, "flux_period": 0.4045776630714525, "asymmetry": 0.06372484642131057, "crosstalk_vector": {} },
+      "pi_half": { "name": "pi_half", "amp90": 0.0 }
+    },
+    "q5": {
+      "name": "q5",
+      "element_type": "FluxTunableTransmonElement",
+      "reset": { "name": "reset", "duration": 0.0005 },
+      "rxy": { "name": "rxy", "amp180": 0.5242846083493254, "beta": 0.0, "duration": 1e-7, "reference_magnitude": { "name": "reference_magnitude", "dBm": NaN, "V": NaN, "A": NaN } },
+      "measure": { "name": "measure", "pulse_type": "SquarePulse", "pulse_amp": 0.05, "pulse_duration": 5e-7, "acq_channel": 0, "acq_delay": 3.59e-7, "integration_time": 5e-7, "reset_clock_phase": true, "acq_weights_a": { "data": "", "shape": [ 0 ], "dtype": "float64" }, "acq_weights_b": { "data": "", "shape": [ 0 ], "dtype": "float64" }, "acq_weights_sampling_rate": 1.0, "acq_weight_type": "SSB", "acq_rotation": 0.0, "acq_threshold": 0.0, "num_points": 1, "reference_magnitude": { "name": "reference_magnitude", "dBm": NaN, "V": NaN, "A": NaN } },
+      "pulse_compensation": { "name": "pulse_compensation", "max_compensation_amp": 0.0, "time_grid": 0.0, "sampling_rate": 0.0 },
+      "ports": { "name": "ports", "microwave": "q5:mw", "flux": "q5:fl", "readout": "q5:res" },
+      "clock_freqs": { "name": "clock_freqs", "f01": 3968000000.0, "f12": 0.0, "readout": 5998355374.756114 },
+      "flux_params": { "name": "flux_params", "sweet_spot": 0.1320469790432078, "flux_period": 0.4038269805386546, "asymmetry": 0.11280040278012857, "crosstalk_vector": {} },
+      "pi_half": { "name": "pi_half", "amp90": 0.0 }
+    },
+    "q6": {
+      "name": "q6",
+      "element_type": "FluxTunableTransmonElement",
+      "reset": { "name": "reset", "duration": 0.0005 },
+      "rxy": { "name": "rxy", "amp180": 0.5, "beta": 0.0, "duration": 1e-7, "reference_magnitude": { "name": "reference_magnitude", "dBm": NaN, "V": NaN, "A": NaN } },
+      "measure": { "name": "measure", "pulse_type": "SquarePulse", "pulse_amp": 0.05, "pulse_duration": 5e-7, "acq_channel": 0, "acq_delay": 3.59e-7, "integration_time": 5e-7, "reset_clock_phase": true, "acq_weights_a": { "data": "", "shape": [ 0 ], "dtype": "float64" }, "acq_weights_b": { "data": "", "shape": [ 0 ], "dtype": "float64" }, "acq_weights_sampling_rate": 1.0, "acq_weight_type": "SSB", "acq_rotation": 0.0, "acq_threshold": 0.0, "num_points": 1, "reference_magnitude": { "name": "reference_magnitude", "dBm": NaN, "V": NaN, "A": NaN } },
+      "pulse_compensation": { "name": "pulse_compensation", "max_compensation_amp": 0.0, "time_grid": 0.0, "sampling_rate": 0.0 },
+      "ports": { "name": "ports", "microwave": "q6:mw", "flux": "q6:fl", "readout": "q6:res" },
+      "clock_freqs": { "name": "clock_freqs", "f01": 4205000000.0, "f12": 0.0, "readout": 6001511631.06185 },
+      "flux_params": { "name": "flux_params", "sweet_spot": -0.12505536101208778, "flux_period": 0.5465405433809009, "asymmetry": 0.19989987475281057, "crosstalk_vector": {} },
+      "pi_half": { "name": "pi_half", "amp90": 0.0 }
+    },
+    "q3": {
+      "name": "q3",
+      "element_type": "FluxTunableTransmonElement",
+      "reset": { "name": "reset", "duration": 0.0005 },
+      "rxy": { "name": "rxy", "amp180": 0.5879937140342022, "beta": -1.3358714077810154e-9, "duration": 1e-7, "reference_magnitude": { "name": "reference_magnitude", "dBm": NaN, "V": NaN, "A": NaN } },
+      "measure": { "name": "measure", "pulse_type": "SquarePulse", "pulse_amp": 0.02, "pulse_duration": 1e-6, "acq_channel": 0, "acq_delay": 3.59e-7, "integration_time": 1e-6, "reset_clock_phase": true, "acq_weights_a": { "data": "", "shape": [ 0 ], "dtype": "float64" }, "acq_weights_b": { "data": "", "shape": [ 0 ], "dtype": "float64" }, "acq_weights_sampling_rate": 1.0, "acq_weight_type": "SSB", "acq_rotation": 181.38989658073905, "acq_threshold": -0.021356083560754472, "num_points": 1, "reference_magnitude": { "name": "reference_magnitude", "dBm": NaN, "V": NaN, "A": NaN } },
+      "pulse_compensation": { "name": "pulse_compensation", "max_compensation_amp": 0.0, "time_grid": 0.0, "sampling_rate": 0.0 },
+      "ports": { "name": "ports", "microwave": "q3:mw", "flux": "q3:fl", "readout": "q3:res" },
+      "clock_freqs": { "name": "clock_freqs", "f01": 3873736316.0895553, "f12": 0.0, "readout": 5949462041.088249 },
+      "flux_params": { "name": "flux_params", "sweet_spot": 0.030973621197490083, "flux_period": 0.5150391548418387, "asymmetry": 0.06074932474071604, "crosstalk_vector": {} },
+      "pi_half": { "name": "pi_half", "amp90": 0.22190085529372702 }
+    },
+    "q8": {
+      "name": "q8",
+      "element_type": "FluxTunableTransmonElement",
+      "reset": { "name": "reset", "duration": 0.0005 },
+      "rxy": { "name": "rxy", "amp180": 0.3931681596527833, "beta": 0.0, "duration": 1e-7, "reference_magnitude": { "name": "reference_magnitude", "dBm": NaN, "V": NaN, "A": NaN } },
+      "measure": { "name": "measure", "pulse_type": "SquarePulse", "pulse_amp": 0.02, "pulse_duration": 1e-6, "acq_channel": 0, "acq_delay": 3.59e-7, "integration_time": 1e-6, "reset_clock_phase": true, "acq_weights_a": { "data": "", "shape": [ 0 ], "dtype": "float64" }, "acq_weights_b": { "data": "", "shape": [ 0 ], "dtype": "float64" }, "acq_weights_sampling_rate": 1.0, "acq_weight_type": "SSB", "acq_rotation": 36.323957723338985, "acq_threshold": -0.0166576955737484, "num_points": 1, "reference_magnitude": { "name": "reference_magnitude", "dBm": NaN, "V": NaN, "A": NaN } },
+      "pulse_compensation": { "name": "pulse_compensation", "max_compensation_amp": 0.0, "time_grid": 0.0, "sampling_rate": 0.0 },
+      "ports": { "name": "ports", "microwave": "q8:mw", "flux": "q8:fl", "readout": "q8:res" },
+      "clock_freqs": { "name": "clock_freqs", "f01": 3784565127.4219723, "f12": 0.0, "readout": 5948832503.560318 },
+      "flux_params": { "name": "flux_params", "sweet_spot": -0.007665909377628272, "flux_period": 0.5889198095180814, "asymmetry": 0.0010056320326298704, "crosstalk_vector": {} },
+      "pi_half": { "name": "pi_half", "amp90": 0.0 }
+    },
+    "q7A": {
+      "name": "q7A",
+      "element_type": "FluxTunableTransmonElement",
+      "reset": { "name": "reset", "duration": 0.0005 },
+      "rxy": { "name": "rxy", "amp180": 0.41833291695208547, "beta": 0.0, "duration": 1e-7, "reference_magnitude": { "name": "reference_magnitude", "dBm": NaN, "V": NaN, "A": NaN } },
+      "measure": { "name": "measure", "pulse_type": "SquarePulse", "pulse_amp": 0.02, "pulse_duration": 1e-6, "acq_channel": 0, "acq_delay": 3.59e-7, "integration_time": 1e-6, "reset_clock_phase": true, "acq_weights_a": { "data": "", "shape": [ 0 ], "dtype": "float64" }, "acq_weights_b": { "data": "", "shape": [ 0 ], "dtype": "float64" }, "acq_weights_sampling_rate": 1.0, "acq_weight_type": "SSB", "acq_rotation": 0.0, "acq_threshold": 0.0, "num_points": 1, "reference_magnitude": { "name": "reference_magnitude", "dBm": NaN, "V": NaN, "A": NaN } },
+      "pulse_compensation": { "name": "pulse_compensation", "max_compensation_amp": 0.0, "time_grid": 0.0, "sampling_rate": 0.0 },
+      "ports": { "name": "ports", "microwave": "q7A:mw", "flux": "q7A:fl", "readout": "q7A:res" },
+      "clock_freqs": { "name": "clock_freqs", "f01": 3857975926.461669, "f12": 0.0, "readout": 6100711998.721471 },
+      "flux_params": { "name": "flux_params", "sweet_spot": 0.012008175175109026, "flux_period": 1.0604897809874894, "asymmetry": 0.9499999999260996, "crosstalk_vector": {} },
+      "pi_half": { "name": "pi_half", "amp90": 0.0 }
+    },
+    "q7B": {
+      "name": "q7B",
+      "element_type": "FluxTunableTransmonElement",
+      "reset": { "name": "reset", "duration": 0.0005 },
+      "rxy": { "name": "rxy", "amp180": 0.41833291695208547, "beta": 0.0, "duration": 1e-7, "reference_magnitude": { "name": "reference_magnitude", "dBm": NaN, "V": NaN, "A": NaN } },
+      "measure": { "name": "measure", "pulse_type": "SquarePulse", "pulse_amp": 0.02, "pulse_duration": 1e-6, "acq_channel": 0, "acq_delay": 3.59e-7, "integration_time": 1e-6, "reset_clock_phase": true, "acq_weights_a": { "data": "", "shape": [ 0 ], "dtype": "float64" }, "acq_weights_b": { "data": "", "shape": [ 0 ], "dtype": "float64" }, "acq_weights_sampling_rate": 1.0, "acq_weight_type": "SSB", "acq_rotation": 0.0, "acq_threshold": 0.0, "num_points": 1, "reference_magnitude": { "name": "reference_magnitude", "dBm": NaN, "V": NaN, "A": NaN } },
+      "pulse_compensation": { "name": "pulse_compensation", "max_compensation_amp": 0.0, "time_grid": 0.0, "sampling_rate": 0.0 },
+      "ports": { "name": "ports", "microwave": "q7B:mw", "flux": "q7B:fl", "readout": "q7B:res" },
+      "clock_freqs": { "name": "clock_freqs", "f01": 3857975926.461669, "f12": 0.0, "readout": 6100711998.721471 },
+      "flux_params": { "name": "flux_params", "sweet_spot": 0.012008175175109026, "flux_period": 1.0604897809874894, "asymmetry": 0.9499999999260996, "crosstalk_vector": {} },
+      "pi_half": { "name": "pi_half", "amp90": 0.0 }
+    }
+  },
+  "edges": {}
+}

@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# Data
+data/
+results/
+*.hdf5
+*.nc
+*.zarr
+
+# Local private configs
+configs/local/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
