@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qblox-measurement-nodes"
+version = "0.1.0"
+description = "Single-qubit calibration experiments built on Qblox Scheduler"
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "matplotlib>=3.7",
+    "numpy>=1.24",
+    "qblox-scheduler>=1.0.0b6,<2",
+    "xarray>=2023.1",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["qblox_lab*"]
