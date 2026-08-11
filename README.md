@@ -3,7 +3,7 @@
 A minimal repository for single-qubit calibration with Qblox Scheduler. It includes
 readout time-of-flight calibration, standard and segmented broadband resonator
 spectroscopy, resonator punchout, resonator flux spectroscopy, and segmented
-broadband qubit spectroscopy.
+broadband and power-dependent qubit spectroscopy.
 
 The code uses public scheduler interfaces: `HardwareAgent`, `Schedule`, operations,
 `SetParameter`, `SetHardwareOption`, `ResonatorModel`,
@@ -31,6 +31,8 @@ src/qblox_lab/
                                       ResonatorFluxSpectroscopy experiment
     cal06_qubit_spectroscopy_full_bandwidth.py
                                       BroadbandQubitSpectroscopy experiment
+    cal07_qubit_spectroscopy_intrinsic_width.py
+                                      QubitSpectroscopyIntrinsicWidth experiment
 notebooks/
   run_time_of_flight.ipynb             Time-of-flight run parameters and execution
   run_broadband_resonator_spectroscopy.ipynb
@@ -41,6 +43,8 @@ notebooks/
                                       Flux-scan run parameters and execution
   run_broadband_qubit_spectroscopy.ipynb
                                       Broadband qubit scan and analysis
+  run07_qubit_spectroscopy_intrinsic_width.ipynb
+                                      Power-dependent qubit scan and analysis
 ```
 
 The Python modules contain reusable experiment and configuration logic. All values
@@ -72,11 +76,11 @@ samples onto a complex grid and tracks the minimum-transmission frequency at eac
 amplitude. Selecting and saving a final readout amplitude remains an explicit user
 choice.
 
-The cal01, cal02, cal03, cal04, and cal06 experiment constructors accept an optional
-`flux_config`. When it is supplied, the selected qubits are ramped to their stored
-biases immediately before measurement. When it is `None`, those experiments do not
-resolve, read, set, or restore any flux parameter, so the live hardware state is left
-unchanged.
+The cal01, cal02, cal03, cal04, cal06, and cal07 experiment constructors accept an
+optional `flux_config`. When it is supplied, the selected qubits are ramped to their
+stored biases immediately before measurement. When it is `None`, those experiments do
+not resolve, read, set, or restore any flux parameter, so the live hardware state is
+left unchanged.
 
 For a two-dimensional resonator-versus-flux scan, open
 [run_resonator_flux_spectroscopy.ipynb](notebooks/run_resonator_flux_spectroscopy.ipynb).
@@ -108,6 +112,14 @@ public `QubitSpectroscopyAnalysis` performs a Lorentzian fit. Simulated data use
 same public Lorentzian function with configurable transition frequency, linewidth,
 contrast, phase, noise, and random seed. A successful result can update the in-memory
 device's `clock_freqs.f01` before saving to a new device file.
+
+For estimating the low-power qubit linewidth, open
+[run07_qubit_spectroscopy_intrinsic_width.ipynb](notebooks/run07_qubit_spectroscopy_intrinsic_width.ipynb).
+The cal07 experiment repeats the cal06 frequency sweep for each requested normalized
+drive amplitude and returns one dataset with frequency and drive-amplitude coordinates.
+The user selects one acquired amplitude for analysis; cal07 then delegates the selected
+trace to cal06's public `QubitSpectroscopyAnalysis` workflow. The complete multi-power
+dataset remains available after fitting.
 
 The broadband resonator experiment can also generate data by calling
 `dataset = experiment.simulated_data()`. Its simulation uses Qblox Scheduler's public

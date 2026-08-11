@@ -4,7 +4,7 @@
         "q0": {
             "name": "q0",
             "reset": {
-                "duration": 0.0002,
+                "duration": 0.000001,
                 "name": "reset"
             },
             "rxy": {

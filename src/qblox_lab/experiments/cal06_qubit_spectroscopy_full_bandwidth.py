@@ -20,6 +20,7 @@ from qblox_scheduler.operations import (
     Reset,
     SetClockFrequency,
     SquarePulse,
+    VoltageOffset,
 )
 from qblox_scheduler.operations.expressions import DType
 from qblox_scheduler.operations.loop_domains import arange, linspace
