@@ -3,7 +3,8 @@
 A minimal repository for single-qubit calibration with Qblox Scheduler. It includes
 readout time-of-flight calibration, standard and segmented broadband resonator
 spectroscopy, resonator punchout, resonator flux spectroscopy, and segmented
-broadband and power-dependent qubit spectroscopy.
+broadband and power-dependent qubit spectroscopy, Rabi calibration, and qubit
+energy-relaxation measurement.
 
 The code uses public scheduler interfaces: `HardwareAgent`, `Schedule`, operations,
 `SetParameter`, `SetHardwareOption`, `ResonatorModel`,
@@ -33,6 +34,8 @@ src/qblox_lab/
                                       BroadbandQubitSpectroscopy experiment
     cal07_qubit_spectroscopy_intrinsic_width.py
                                       QubitSpectroscopyIntrinsicWidth experiment
+    cal08_rabi.py                     Rabi experiment
+    cal09_energy_relaxation.py        EnergyRelaxation experiment
 notebooks/
   run_time_of_flight.ipynb             Time-of-flight run parameters and execution
   run_broadband_resonator_spectroscopy.ipynb
@@ -45,6 +48,8 @@ notebooks/
                                       Broadband qubit scan and analysis
   run07_qubit_spectroscopy_intrinsic_width.ipynb
                                       Power-dependent qubit scan and analysis
+  run08_rabi.ipynb                    Amplitude/time Rabi calibration
+  run09_energy_relaxation.ipynb       Qubit T1 measurement and analysis
 ```
 
 The Python modules contain reusable experiment and configuration logic. All values
@@ -76,11 +81,11 @@ samples onto a complex grid and tracks the minimum-transmission frequency at eac
 amplitude. Selecting and saving a final readout amplitude remains an explicit user
 choice.
 
-The cal01, cal02, cal03, cal04, cal06, and cal07 experiment constructors accept an
-optional `flux_config`. When it is supplied, the selected qubits are ramped to their
-stored biases immediately before measurement. When it is `None`, those experiments do
-not resolve, read, set, or restore any flux parameter, so the live hardware state is
-left unchanged.
+The cal01, cal02, cal03, cal04, cal06, cal07, cal08, and cal09 experiment
+constructors accept an optional `flux_config`. When it is supplied, the selected
+qubits are ramped to their stored biases immediately before measurement. When it is
+`None`, those experiments do not resolve, read, set, or restore any flux parameter,
+so the live hardware state is left unchanged.
 
 For a two-dimensional resonator-versus-flux scan, open
 [run_resonator_flux_spectroscopy.ipynb](notebooks/run_resonator_flux_spectroscopy.ipynb).
@@ -120,6 +125,26 @@ drive amplitude and returns one dataset with frequency and drive-amplitude coord
 The user selects one acquired amplitude for analysis; cal07 then delegates the selected
 trace to cal06's public `QubitSpectroscopyAnalysis` workflow. The complete multi-power
 dataset remains available after fitting.
+
+For pi-pulse calibration, open [run08_rabi.ipynb](notebooks/run08_rabi.ipynb).
+The cal08 experiment accepts an evenly spaced amplitude array, duration array, or
+both. It uses real-time scheduler loops and returns one dataset containing named
+amplitude and duration coordinates. Its data plot is one-dimensional when one axis
+is fixed and two-dimensional when both axes are swept. Power Rabi analysis fits the
+amplitude trace at a user-selected duration; time Rabi analysis fits the duration
+trace at a user-selected amplitude. Both fits use Qblox Scheduler's public
+`RabiAnalysis`, and simulation uses its public cosine function. A successful result
+can update the matching `rxy.amp180` and `rxy.duration` pair in a new device file.
+
+For qubit energy-relaxation measurement, open
+[run09_energy_relaxation.ipynb](notebooks/run09_energy_relaxation.ipynb). The cal09
+experiment applies the device's calibrated `X` operation, waits for a real-time
+swept delay, and measures the remaining excited-state signal. Repetitions are
+averaged before Qblox Scheduler's public `T1Analysis` fits the exponential decay.
+Simulated data uses the same public `exp_decay_func`, with configurable T1,
+baseline, contrast, stretch factor, phase, noise, and seed. Since the scheduler's
+`BasicTransmonElement` has no T1 field, the fitted value is reported in the result
+object and is not written into the device configuration.
 
 The broadband resonator experiment can also generate data by calling
 `dataset = experiment.simulated_data()`. Its simulation uses Qblox Scheduler's public
