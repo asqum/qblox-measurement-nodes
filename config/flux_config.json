@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "flux_biases": {
+    "q0": {
+      "value": 0.05,
+      "unit": "V",
+      "ramp_step": 0.0003,
+      "inter_delay": 1e-07
+    }
+  }
+}
