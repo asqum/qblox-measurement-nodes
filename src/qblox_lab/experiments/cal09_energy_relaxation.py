@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Literal, Mapping, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,7 +12,7 @@ from qblox_scheduler import HardwareAgent, Schedule
 from qblox_scheduler.analysis.fitting_models import exp_decay_func
 from qblox_scheduler.analysis.single_qubit_timedomain import T1Analysis
 from qblox_scheduler.experiments import SetHardwareOption, SetParameter
-from qblox_scheduler.operations import IdlePulse, Measure, Reset, X
+from qblox_scheduler.operations import IdlePulse, Measure, Reset, X, ConditionalReset
 from qblox_scheduler.operations.expressions import DType
 from qblox_scheduler.operations.loop_domains import arange, linspace
 from xarray import Dataset
@@ -67,6 +67,21 @@ class EnergyRelaxation:
         return f"{qubit.ports.readout}-{qubit.name}.ro"
 
     @staticmethod
+    def _add_reset(
+        schedule: Schedule,
+        qubit_name: str,
+        reset_type: Literal["thermal", "active"],
+        acq_channel: str | None = None,
+    ) -> None:
+        """Reset a qubit: fixed-duration thermal wait, or measurement-based active reset."""
+        if reset_type == "active":
+            schedule.add(
+                ConditionalReset(qubit_name, acq_channel=acq_channel or f"cond_{qubit_name}")
+            )
+        else:
+            schedule.add(Reset(qubit_name))
+
+    @staticmethod
     def _validated_delays(delays: Sequence[float]) -> tuple[float, ...]:
         converted = tuple(float(delay) for delay in delays)
         if len(converted) < 4:
@@ -102,6 +117,7 @@ class EnergyRelaxation:
         *,
         delays: Sequence[float],
         repetitions: int,
+        reset_type: Literal["thermal", "active"] = "thermal",
         readout_amplitude: float | None = None,
         drive_output_attenuation: int | None = None,
         readout_output_attenuation: int | None = None,
@@ -160,7 +176,7 @@ class EnergyRelaxation:
                         DType.TIME,
                     )
                 ) as delay:
-                    qubit_schedule.add(Reset(qubit.name))
+                    self._add_reset(qubit_schedule, qubit.name, reset_type)
                     qubit_schedule.add(X(qubit.name))
                     qubit_schedule.add(IdlePulse(delay))
                     qubit_schedule.add(
@@ -191,6 +207,7 @@ class EnergyRelaxation:
         *,
         delays: Sequence[float],
         repetitions: int,
+        reset_type: Literal["thermal", "active"] = "thermal",
         readout_amplitude: float | None = None,
         drive_output_attenuation: int | None = None,
         readout_output_attenuation: int | None = None,
@@ -201,6 +218,7 @@ class EnergyRelaxation:
         schedule = self.build_schedule(
             delays=delays,
             repetitions=repetitions,
+            reset_type=reset_type,
             readout_amplitude=readout_amplitude,
             drive_output_attenuation=drive_output_attenuation,
             readout_output_attenuation=readout_output_attenuation,

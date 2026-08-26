@@ -1,0 +1,76 @@
+{
+    "config_type": "QbloxHardwareCompilationConfig",
+    "hardware_description": {
+        "cluster_A": {
+            "instrument_type": "Cluster",
+            "modules": {
+                "6": { "instrument_type": "QCM_RF" },
+                "8": { "instrument_type": "QRM_RF" }
+    
+            },
+            "sequence_to_file": false,
+            "ref": "internal",
+            "ip": "192.168.1.242"
+        }
+    },
+    "hardware_options": {
+        "input_gain": {
+            "q1:res-q1.ro": {
+                "gain_I": 2,
+                "gain_Q": 3
+            },
+            "q2:res-q2.ro": {
+                "gain_I": 2,
+                "gain_Q": 3
+            },
+            "q3:res-q3.ro": {
+                "gain_I": 2,
+                "gain_Q": 3
+            }
+        },
+        "output_att": {
+            "q1:mw-q1.01": 20,
+            "q2:mw-q2.01": 0,
+            "q3:mw-q3.01": 0,
+            "q1:res-q1.ro": 26,
+            "q2:res-q2.ro": 26,
+            "q3:res-q3.ro": 26
+        },
+        "input_att": {
+            "q1:res-q1.ro": 10,
+            "q2:res-q2.ro": 10,
+            "q3:res-q3.ro": 10
+
+        },
+        "modulation_frequencies": {
+            "q1:mw-q1.01": { "lo_freq": 3.0e9 },
+            "q2:mw-q2.01": { "lo_freq": 3.0e9 },
+            "q3:mw-q3.01": { "lo_freq": 3e9 },
+
+            "q1:res-q1.ro": { "lo_freq": 4.8e9 },
+            "q2:res-q2.ro": { "lo_freq": 4.8e9 },
+            "q3:res-q3.ro": { "lo_freq": 4.8e9 }
+
+        }
+    },
+    "connectivity": {
+        "graph": [
+            [ "cluster_A.module8.complex_output_0", "q1:res" ],
+            [ "cluster_A.module8.complex_output_0", "q2:res" ],
+            [ "cluster_A.module8.complex_output_0", "q3:res" ],
+
+ 
+
+            [ "cluster_A.module8.complex_input_0", "q1:res" ],
+            [ "cluster_A.module8.complex_input_0", "q2:res" ],
+            [ "cluster_A.module8.complex_input_0", "q3:res" ],
+
+
+
+            [ "cluster_A.module6.complex_output_0", "q1:mw" ],
+            [ "cluster_A.module6.complex_output_0", "q2:mw" ],
+            [ "cluster_A.module6.complex_output_0", "q3:mw" ]
+
+        ]
+    }
+}

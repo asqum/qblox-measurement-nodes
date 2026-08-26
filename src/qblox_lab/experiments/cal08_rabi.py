@@ -12,7 +12,7 @@ from qblox_scheduler import HardwareAgent, Schedule
 from qblox_scheduler.analysis.fitting_models import cos_func
 from qblox_scheduler.analysis.single_qubit_timedomain import RabiAnalysis
 from qblox_scheduler.experiments import SetHardwareOption, SetParameter
-from qblox_scheduler.operations import IdlePulse, Measure, Reset, VoltageOffset
+from qblox_scheduler.operations import ConditionalReset, IdlePulse, Measure, Reset, VoltageOffset
 from qblox_scheduler.operations.expressions import DType, Expression
 from qblox_scheduler.operations.loop_domains import arange, linspace
 from xarray import Dataset
@@ -147,13 +147,29 @@ class Rabi:
             )
 
     @staticmethod
+    def _add_reset(
+        schedule: Schedule,
+        qubit_name: str,
+        reset_type: Literal["thermal", "active"],
+        acq_channel: str | None = None,
+    ) -> None:
+        """Reset a qubit: fixed-duration thermal wait, or measurement-based active reset."""
+        if reset_type == "active":
+            schedule.add(
+                ConditionalReset(qubit_name, acq_channel=acq_channel or f"cond_{qubit_name}")
+            )
+        else:
+            schedule.add(Reset(qubit_name))
+
+    @staticmethod
     def _add_rabi_sequence(
         schedule: Schedule,
         qubit: Any,
         drive_amplitude: float | Expression,
         drive_duration: float | Expression,
+        reset_type: Literal["thermal", "active"] = "thermal",
     ) -> None:
-        schedule.add(Reset(qubit.name))
+        Rabi._add_reset(schedule, qubit.name, reset_type)
         pulse_reference = schedule.add(
             VoltageOffset(
                 offset_path_I=drive_amplitude,
@@ -191,6 +207,7 @@ class Rabi:
         drive_amplitudes: float | Sequence[float],
         drive_durations: float | Sequence[float],
         repetitions: int,
+        reset_type: Literal["thermal", "active"] = "thermal",
         readout_amplitude: float | None = None,
         drive_output_attenuation: int | None = None,
         readout_output_attenuation: int | None = None,
@@ -268,6 +285,7 @@ class Rabi:
                                 qubit,
                                 amplitude,
                                 duration,
+                                reset_type,
                             )
                 elif len(amplitudes) > 1:
                     with qubit_schedule.loop(
@@ -283,6 +301,7 @@ class Rabi:
                             qubit,
                             amplitude,
                             durations[0],
+                            reset_type,
                         )
                 else:
                     with qubit_schedule.loop(
@@ -298,6 +317,7 @@ class Rabi:
                             qubit,
                             amplitudes[0],
                             duration,
+                            reset_type,
                         )
 
             if parallel_reference is None:
@@ -321,6 +341,7 @@ class Rabi:
         drive_amplitudes: float | Sequence[float],
         drive_durations: float | Sequence[float],
         repetitions: int,
+        reset_type: Literal["thermal", "active"] = "thermal",
         readout_amplitude: float | None = None,
         drive_output_attenuation: int | None = None,
         readout_output_attenuation: int | None = None,
@@ -332,6 +353,7 @@ class Rabi:
             drive_amplitudes=drive_amplitudes,
             drive_durations=drive_durations,
             repetitions=repetitions,
+            reset_type=reset_type,
             readout_amplitude=readout_amplitude,
             drive_output_attenuation=drive_output_attenuation,
             readout_output_attenuation=readout_output_attenuation,

@@ -1,0 +1,424 @@
+{
+  "name": "dut_config_AS_QRC",
+  "elements": {
+    "q1": {
+      "name": "q1",
+      "element_type": "BasicTransmonElement",
+      "reset": {
+        "name": "reset",
+        "duration": 0.00273
+      },
+      "rxy": {
+        "name": "rxy",
+        "amp180": 0.24710889460708887,
+        "beta": 0.0,
+        "duration": 3e-7,
+        "reference_magnitude": {
+          "name": "reference_magnitude",
+          "dBm": NaN,
+          "V": NaN,
+          "A": NaN
+        }
+      },
+      "measure": {
+        "name": "measure",
+        "pulse_type": "SquarePulse",
+        "pulse_amp": 0.075,
+        "pulse_duration": 0.000018,
+        "acq_channel": 0,
+        "acq_delay": 3.59e-7,
+        "integration_time": 0.000018,
+        "reset_clock_phase": true,
+        "acq_weights_a": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weights_b": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weights_sampling_rate": 1.0,
+        "acq_weight_type": "SSB",
+        "acq_rotation": 307.8338024122479,
+        "acq_threshold": -0.00043972049135668944,
+        "num_points": 1,
+        "reference_magnitude": {
+          "name": "reference_magnitude",
+          "dBm": NaN,
+          "V": NaN,
+          "A": NaN
+        }
+      },
+      "pulse_compensation": {
+        "name": "pulse_compensation",
+        "max_compensation_amp": 0.0,
+        "time_grid": 0.0,
+        "sampling_rate": 0.0,
+        "min_duration": NaN
+      },
+      "ports": {
+        "name": "ports",
+        "microwave": "q1:mw",
+        "flux": "q1:fl",
+        "readout": "q1:res"
+      },
+      "clock_freqs": {
+        "name": "clock_freqs",
+        "f01": 2941331184.2739024,
+        "f12": 0.0,
+        "readout": 5011775057.842197
+      }
+    },
+    "q2": {
+      "name": "q2",
+      "element_type": "BasicTransmonElement",
+      "reset": {
+        "name": "reset",
+        "duration": 0.0005
+      },
+      "rxy": {
+        "name": "rxy",
+        "amp180": 0.12931196035439876,
+        "beta": 0.0,
+        "duration": 3.2e-7,
+        "reference_magnitude": {
+          "name": "reference_magnitude",
+          "dBm": NaN,
+          "V": NaN,
+          "A": NaN
+        }
+      },
+      "measure": {
+        "name": "measure",
+        "pulse_type": "SquarePulse",
+        "pulse_amp": 0.075,
+        "pulse_duration": 0.000018,
+        "acq_channel": 0,
+        "acq_delay": 3.59e-7,
+        "integration_time": 0.000018,
+        "reset_clock_phase": true,
+        "acq_weights_a": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weights_b": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weights_sampling_rate": 1.0,
+        "acq_weight_type": "SSB",
+        "acq_rotation": 446.31784754297655,
+        "acq_threshold": 0.0011339371901807522,
+        "num_points": 1,
+        "reference_magnitude": {
+          "name": "reference_magnitude",
+          "dBm": NaN,
+          "V": NaN,
+          "A": NaN
+        }
+      },
+      "pulse_compensation": {
+        "name": "pulse_compensation",
+        "max_compensation_amp": 0.0,
+        "time_grid": 0.0,
+        "sampling_rate": 0.0,
+        "min_duration": NaN
+      },
+      "ports": {
+        "name": "ports",
+        "microwave": "q2:mw",
+        "flux": "q2:fl",
+        "readout": "q2:res"
+      },
+      "clock_freqs": {
+        "name": "clock_freqs",
+        "f01": 3063498060.339825,
+        "f12": 0.0,
+        "readout": 4912418378.395579
+      }
+    },
+    "q3": {
+      "name": "q3",
+      "element_type": "BasicTransmonElement",
+      "reset": {
+        "name": "reset",
+        "duration": 0.0005
+      },
+      "rxy": {
+        "name": "rxy",
+        "amp180": 0.5521900031075424,
+        "beta": 0.0,
+        "duration": 3.2e-7,
+        "reference_magnitude": {
+          "name": "reference_magnitude",
+          "dBm": NaN,
+          "V": NaN,
+          "A": NaN
+        }
+      },
+      "measure": {
+        "name": "measure",
+        "pulse_type": "SquarePulse",
+        "pulse_amp": 0.075,
+        "pulse_duration": 0.000018,
+        "acq_channel": 0,
+        "acq_delay": 3.59e-7,
+        "integration_time": 0.000018,
+        "reset_clock_phase": true,
+        "acq_weights_a": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weights_b": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weights_sampling_rate": 1.0,
+        "acq_weight_type": "SSB",
+        "acq_rotation": 252.1278964694604,
+        "acq_threshold": 0.00024092290220805433,
+        "num_points": 1,
+        "reference_magnitude": {
+          "name": "reference_magnitude",
+          "dBm": NaN,
+          "V": NaN,
+          "A": NaN
+        }
+      },
+      "pulse_compensation": {
+        "name": "pulse_compensation",
+        "max_compensation_amp": 0.0,
+        "time_grid": 0.0,
+        "sampling_rate": 0.0,
+        "min_duration": NaN
+      },
+      "ports": {
+        "name": "ports",
+        "microwave": "q3:mw",
+        "flux": "q3:fl",
+        "readout": "q3:res"
+      },
+      "clock_freqs": {
+        "name": "clock_freqs",
+        "f01": 3278300000.0,
+        "f12": 0.0,
+        "readout": 5113054000.0
+      }
+    }
+  },
+  "edges": {},
+  "cfg_sched_repetitions": 1024,
+  "keep_original_schedule": true,
+  "hardware_config": {
+    "config_type": "QbloxHardwareCompilationConfig",
+    "hardware_description": {
+      "cluster_A": {
+        "instrument_type": "Cluster",
+        "ref": "internal",
+        "sequence_to_file": false,
+        "modules": {
+          "6": {
+            "sequence_to_file": false,
+            "rf_output_on": true,
+            "sequencer_isa_version": [
+              2,
+              1
+            ],
+            "instrument_type": "QCM_RF",
+            "complex_output_0": null,
+            "complex_output_1": null,
+            "digital_output_0": null,
+            "digital_output_1": null
+          },
+          "8": {
+            "sequence_to_file": false,
+            "rf_output_on": true,
+            "sequencer_isa_version": [
+              2,
+              1
+            ],
+            "instrument_type": "QRM_RF",
+            "complex_output_0": null,
+            "complex_input_0": null,
+            "digital_output_0": null,
+            "digital_output_1": null
+          },
+          "4": {
+            "sequence_to_file": false,
+            "rf_output_on": true,
+            "sequencer_isa_version": [
+              2,
+              1
+            ],
+            "instrument_type": "QCM_RF",
+            "complex_output_0": null,
+            "complex_output_1": null,
+            "digital_output_0": null,
+            "digital_output_1": null
+          }
+        },
+        "ip": "192.168.1.242",
+        "sync_on_external_trigger": null
+      }
+    },
+    "hardware_options": {
+      "crosstalk": null,
+      "latency_corrections": null,
+      "distortion_corrections": null,
+      "modulation_frequencies": {
+        "q1:mw-q1.01": {
+          "interm_freq": null,
+          "lo_freq": 3000000000.0
+        },
+        "q2:mw-q2.01": {
+          "interm_freq": null,
+          "lo_freq": 3000000000.0
+        },
+        "q3:mw-q3.01": {
+          "interm_freq": null,
+          "lo_freq": 3000000000.0
+        },
+        "q1:res-q1.ro": {
+          "interm_freq": null,
+          "lo_freq": 4800000000.0
+        },
+        "q2:res-q2.ro": {
+          "interm_freq": null,
+          "lo_freq": 4800000000.0
+        },
+        "q3:res-q3.ro": {
+          "interm_freq": null,
+          "lo_freq": 4800000000.0
+        }
+      },
+      "mixer_corrections": null,
+      "input_gain": {
+        "q1:res-q1.ro": {
+          "gain_I": 2,
+          "gain_Q": 3
+        },
+        "q2:res-q2.ro": {
+          "gain_I": 2,
+          "gain_Q": 3
+        },
+        "q3:res-q3.ro": {
+          "gain_I": 2,
+          "gain_Q": 3
+        }
+      },
+      "output_att": {
+        "q1:mw-q1.01": 20,
+        "q2:mw-q2.01": 0,
+        "q3:mw-q3.01": 0,
+        "q1:res-q1.ro": 26,
+        "q2:res-q2.ro": 26,
+        "q3:res-q3.ro": 26
+      },
+      "input_att": {
+        "q1:res-q1.ro": 10,
+        "q2:res-q2.ro": 10,
+        "q3:res-q3.ro": 10
+      },
+      "sequencer_options": null,
+      "digitization_thresholds": null,
+      "source_mode": null,
+      "measure_mode": null,
+      "slew_rate": null,
+      "integration_time": null,
+      "safe_voltage_range": null
+    },
+    "connectivity": {
+      "graph": [
+        [
+          "cluster_A.module8.complex_output_0",
+          "q1:res"
+        ],
+        [
+          "cluster_A.module8.complex_output_0",
+          "q2:res"
+        ],
+        [
+          "cluster_A.module8.complex_output_0",
+          "q3:res"
+        ],
+        [
+          "q1:res",
+          "cluster_A.module8.complex_input_0"
+        ],
+        [
+          "q2:res",
+          "cluster_A.module8.complex_input_0"
+        ],
+        [
+          "q3:res",
+          "cluster_A.module8.complex_input_0"
+        ],
+        [
+          "cluster_A.module6.complex_output_0",
+          "q1:mw"
+        ],
+        [
+          "cluster_A.module6.complex_output_0",
+          "q2:mw"
+        ],
+        [
+          "cluster_A.module6.complex_output_0",
+          "q3:mw"
+        ]
+      ]
+    },
+    "compilation_passes": [
+      {
+        "name": "switch_outputs",
+        "compilation_func": "qblox_scheduler.backends.qblox.switch_outputs.switch_outputs"
+      },
+      {
+        "name": "crosstalk_compensation",
+        "compilation_func": "qblox_scheduler.backends.qblox.crosstalk_compensation.crosstalk_compensation"
+      },
+      {
+        "name": "stack_pulses",
+        "compilation_func": "qblox_scheduler.backends.qblox.stack_pulses.stack_pulses"
+      },
+      {
+        "name": "compile_long_pulses_to_awg_offsets",
+        "compilation_func": "qblox_scheduler.backends.qblox_backend.compile_long_pulses_to_awg_offsets"
+      },
+      {
+        "name": "qblox_compile_conditional_playback",
+        "compilation_func": "qblox_scheduler.backends.qblox_backend.compile_conditional_playback"
+      },
+      {
+        "name": "add_portclocks_to_assigns",
+        "compilation_func": "qblox_scheduler.backends.qblox_backend.add_portclocks_to_assigns"
+      },
+      {
+        "name": "qblox_hardware_compile",
+        "compilation_func": "qblox_scheduler.backends.qblox_backend.hardware_compile"
+      }
+    ],
+    "compiler_options": {
+      "retime_allowed": false
+    },
+    "version": "0.1"
+  },
+  "scheduling_strategy": "asap"
+}
