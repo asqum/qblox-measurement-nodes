@@ -85,6 +85,7 @@ class IQBlob:
         self.schedule: Schedule | None = None
         self.dataset: Dataset | None = None
         self.results: dict[str, IQBlobResult] = {}
+        self.figures: dict[str, Any] = {}
 
     @staticmethod
     def _add_reset(
@@ -458,4 +459,5 @@ class IQBlob:
             axes[2 * row_group + 1][column].axis("off")
 
         fig.tight_layout()
+        self.figures = {"iq_blob": fig}
         plt.show()

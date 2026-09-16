@@ -17,12 +17,14 @@ class Session:
     hardware_config: Path
     device_config: Path
     flux_config: Path | None
+    output_dir: Path
 
 
 SESSIONS: dict[str, Session] = {
     "AS_QRC": Session(
         hardware_config=CONFIG_DIR / "hw_config_AS_QRC.json",
         device_config=CONFIG_DIR / "dut_config_AS_QRC.json",
-        flux_config=None,
+        flux_config=CONFIG_DIR / "flux_config_AS_QRC.json",
+        output_dir=Path("/home/reny871224/qblox/10q9c"),
     ),
 }

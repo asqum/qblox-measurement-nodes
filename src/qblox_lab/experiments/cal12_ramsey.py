@@ -8,6 +8,19 @@ true qubit frequency has drifted, because
 a non-negative oscillation frequency: comparing the two branches' fitted
 frequencies against the known artificial detuning resolves that sign
 ambiguity.
+
+The artificial detuning is applied as a **virtual Z gate** (an NCO clock-phase
+shift, :class:`~qblox_scheduler.operations.ShiftClockPhase`, of
+``360 * sign * frequency_detuning * delay`` degrees inserted between the two
+``X90`` pulses) rather than by physically retuning the drive clock with
+``SetClockFrequency`` between pulses. This mirrors ``06_Ramsey.py``'s
+``frame_rotation_2pi`` in the QM reference
+(``/home/reny871224/QM/06_Ramsey.py``): both ``X90`` pulses stay exactly
+on-resonance, avoiding any settling/phase-continuity cost of switching the
+clock frequency mid-shot. Each shot starts with
+:class:`~qblox_scheduler.operations.ResetClockPhase` (matching QM's
+``reset_frame``) so the accumulated virtual phase never carries over between
+shots or delay/sign points.
 """
 
 from __future__ import annotations
@@ -27,7 +40,8 @@ from qblox_scheduler.operations import (
     IdlePulse,
     Measure,
     Reset,
-    SetClockFrequency,
+    ResetClockPhase,
+    ShiftClockPhase,
     X90,
 )
 from qblox_scheduler.operations.expressions import DType
@@ -81,6 +95,7 @@ class Ramsey:
         self.schedule: Schedule | None = None
         self.dataset: Dataset | None = None
         self.results: dict[str, RamseyResult] = {}
+        self.figures: dict[str, Any] = {}
 
     @staticmethod
     def _drive_port_clock(qubit: Any) -> str:
@@ -201,15 +216,22 @@ class Ramsey:
                 ) as delay:
                     for sign in DETUNING_SIGNS:
                         self._add_reset(qubit_schedule, qubit.name, reset_type)
-                        qubit_schedule.add(
-                            SetClockFrequency(
-                                clock=drive_clock,
-                                frequency=qubit.clock_freqs.f01 + sign * frequency_detuning,
-                            )
-                        )
+                        # Start each shot with a clean clock phase (matches QM's
+                        # reset_frame()) so the virtual-Z shift below never carries
+                        # over from a previous delay/sign point.
+                        qubit_schedule.add(ResetClockPhase(clock=drive_clock))
                         qubit_schedule.add(IdlePulse(4e-9))
                         qubit_schedule.add(X90(qubit.name))
-                        qubit_schedule.add(X90(qubit.name), rel_time=delay)
+                        # Virtual Z gate: shift the clock phase by the angle the qubit
+                        # would have accumulated under a real `sign * frequency_detuning`
+                        # offset over `delay` seconds, instead of physically retuning the
+                        # drive clock -- both X90 pulses stay exactly on-resonance.
+                        virtual_detuning_phase = delay * (sign * frequency_detuning * 360.0)
+                        qubit_schedule.add(
+                            ShiftClockPhase(phase_shift=virtual_detuning_phase, clock=drive_clock),
+                            rel_time=delay,
+                        )
+                        qubit_schedule.add(X90(qubit.name))
                         qubit_schedule.add(IdlePulse(4e-9))
                         qubit_schedule.add(
                             Measure(
@@ -221,8 +243,10 @@ class Ramsey:
                                 acq_channel=f"S21_{qubit.name}",
                             )
                         )
-            # Leave the drive clock at its configured frequency for whatever runs next.
-            qubit_schedule.add(SetClockFrequency(clock=drive_clock, frequency=qubit.clock_freqs.f01))
+            # The drive stays on-resonance throughout -- only the clock phase was
+            # shifted (virtual Z) -- so reset it before whatever runs next reuses
+            # this clock.
+            qubit_schedule.add(ResetClockPhase(clock=drive_clock))
 
             if parallel_reference is None:
                 parallel_reference = measurement_schedule.add(qubit_schedule)
@@ -544,7 +568,88 @@ class Ramsey:
         """Create the scheduler's public Ramsey fit figures for both branches."""
         if not self.results:
             raise RuntimeError("Call analysis() before plotting.")
-        for result in self.results.values():
+        self.figures = {}
+        for qubit_name, result in self.results.items():
             result.analysis_object_plus.create_figures()
             result.analysis_object_minus.create_figures()
+            for fig_name, fig in result.analysis_object_plus.figs_mpl.items():
+                self.figures[f"{qubit_name}_plus_{fig_name}"] = fig
+            for fig_name, fig in result.analysis_object_minus.figs_mpl.items():
+                self.figures[f"{qubit_name}_minus_{fig_name}"] = fig
+        plt.show()
+
+    def plot_combined(self) -> None:
+        """Overlay both detuning branches into a single figure per qubit.
+
+        ``plot()`` reuses the scheduler's ``RamseyAnalysis.create_figures()``,
+        which draws one figure per branch. This instead mirrors the reference
+        repo's ``plot_analysis()``: +detuning and -detuning data and fits share
+        one axes per qubit, so the sign-resolved frequency error is visible by
+        eye in a single glance.
+        """
+        if not self.results:
+            raise RuntimeError("Call analysis() before plotting.")
+
+        branch_style = {
+            1: ("tab:blue", "tab:red", "+detuning"),
+            -1: ("tab:green", "tab:orange", "-detuning"),
+        }
+
+        for qubit_name, result in self.results.items():
+            analysis_objects = {
+                1: result.analysis_object_plus,
+                -1: result.analysis_object_minus,
+            }
+            figure, axis = plt.subplots(figsize=(8, 5))
+            y_label = "Magnitude |S21| (V)"
+
+            for sign, analysis_object in analysis_objects.items():
+                data_color, fit_color, label = branch_style[sign]
+                processed = analysis_object.dataset_processed
+                x_values = processed.x0.values
+                if analysis_object.calibration_points:
+                    y_values = processed.pop_exc.values
+                    y_label = r"$|1\rangle$ population"
+                else:
+                    y_values = np.abs(processed.S21.values)
+                    y_label = "Magnitude |S21| (V)"
+
+                axis.plot(
+                    x_values / 1e-6, y_values, "o", color=data_color, label=f"Data ({label})"
+                )
+
+                fit_result = analysis_object.fit_results.get("Ramsey_decay")
+                quantities = analysis_object.quantities_of_interest
+                if fit_result is not None and quantities.get("fit_success", False):
+                    fine_delays = np.linspace(x_values.min(), x_values.max(), 300)
+                    fit_curve = fit_result.eval(t=fine_delays)
+                    fitted_detuning = quantities["fitted_detuning"]
+                    fitted_detuning_value = float(
+                        getattr(fitted_detuning, "nominal_value", fitted_detuning)
+                    )
+                    axis.plot(
+                        fine_delays / 1e-6,
+                        fit_curve,
+                        "-",
+                        color=fit_color,
+                        lw=2,
+                        label=f"Fit ({label}): {fitted_detuning_value / 1e6:.3f} MHz",
+                    )
+
+            if result.success:
+                fit_text = (
+                    f"T2* = {result.t2_star / 1e-6:.2f} us\n"
+                    f"Frequency error = {result.frequency_error / 1e6:+.3f} MHz"
+                )
+                axis.plot([], [], " ", label=fit_text)
+
+            axis.set(
+                xlabel=r"Ramsey delay ($\mu$s)",
+                ylabel=y_label,
+                title=f"Ramsey: {qubit_name}",
+            )
+            axis.legend(loc="lower right", fontsize="small")
+            axis.grid(True, linestyle="--", alpha=0.5)
+            figure.tight_layout()
+            self.figures[f"{qubit_name}_combined"] = figure
         plt.show()

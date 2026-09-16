@@ -55,6 +55,7 @@ class ResonatorSpectroscopy:
         self.schedule: Schedule | None = None
         self.dataset: Dataset | None = None
         self.results: dict[str, ResonatorFitResult] = {}
+        self.figures: dict[str, Any] = {}
 
     @staticmethod
     def _readout_port_clock(qubit: Any) -> str:
@@ -399,6 +400,7 @@ class ResonatorSpectroscopy:
         if self.dataset is None or not self.results:
             raise RuntimeError("Call run_measurement() and analysis() before plotting.")
 
+        self.figures = {}
         for qubit in self.qubits:
             frequency = np.asarray(self.dataset[f"frequency_{qubit.name}"].values).ravel()
             transmission = np.asarray(self.dataset[f"S21_{qubit.name}"].values).ravel()
@@ -426,5 +428,6 @@ class ResonatorSpectroscopy:
             iq_axis.axis("equal")
             iq_axis.legend()
             figure.tight_layout()
+            self.figures[qubit.name] = figure
 
         plt.show()

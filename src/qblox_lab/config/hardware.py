@@ -151,15 +151,22 @@ def apply_flux_config(
         try:
             qubit = hardware_agent.quantum_device.get_element(qubit_name)
         except KeyError as error:
-            raise ValueError(
-                f"Flux-bias configuration refers to unknown qubit {qubit_name!r}."
-            ) from error
-        configured_port = qubit.ports.flux
-        if setting.get("port") is not None and setting["port"] != configured_port:
-            raise ValueError(
-                f"Flux-bias port for {qubit_name!r} is {setting['port']!r}, but the "
-                f"device configuration declares {configured_port!r}."
-            )
+            # Not every flux-biased element is a registered QuantumDevice element
+            # (e.g. couplers) — fall back to the explicit "port" field instead.
+            if setting.get("port") is None:
+                raise ValueError(
+                    f"Flux-bias configuration refers to unknown qubit {qubit_name!r}; "
+                    "provide an explicit 'port' for elements with no registered device "
+                    "element (e.g. couplers)."
+                ) from error
+            configured_port = setting["port"]
+        else:
+            configured_port = qubit.ports.flux
+            if setting.get("port") is not None and setting["port"] != configured_port:
+                raise ValueError(
+                    f"Flux-bias port for {qubit_name!r} is {setting['port']!r}, but the "
+                    f"device configuration declares {configured_port!r}."
+                )
         parameter = resolve_flux_offset_parameter(hardware_agent, configured_port)
         parameter.get()
         parameter.step = setting["ramp_step"]

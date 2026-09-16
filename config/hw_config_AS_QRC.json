@@ -4,73 +4,168 @@
         "cluster_A": {
             "instrument_type": "Cluster",
             "modules": {
-                "6": { "instrument_type": "QCM_RF" },
-                "8": { "instrument_type": "QRM_RF" }
-    
+                "2": { "instrument_type": "QCM" },
+                "4": { "instrument_type": "QCM" },
+                "6": { "instrument_type": "QCM" },
+                "8": { "instrument_type": "QCM" },
+                "9": { "instrument_type": "QCM" },
+
+                "10": { "instrument_type": "QCM_RF" },
+                "12": { "instrument_type": "QCM_RF" },
+                "14": { "instrument_type": "QCM_RF" },
+                "16": { "instrument_type": "QCM_RF" },
+                "17": { "instrument_type": "QCM_RF" },
+                "18": { "instrument_type": "QCM_RF" },
+
+                "19": { "instrument_type": "QRM_RF" },
+                "20": { "instrument_type": "QRM_RF" }
             },
             "sequence_to_file": false,
             "ref": "internal",
-            "ip": "192.168.1.242"
+            "ip": "192.168.1.13"
         }
     },
     "hardware_options": {
         "input_gain": {
-            "q1:res-q1.ro": {
-                "gain_I": 2,
-                "gain_Q": 3
-            },
-            "q2:res-q2.ro": {
-                "gain_I": 2,
-                "gain_Q": 3
-            },
-            "q3:res-q3.ro": {
-                "gain_I": 2,
-                "gain_Q": 3
-            }
+            "q1:res-q1.ro": { "gain_I": 2, "gain_Q": 3 },
+            "q2:res-q2.ro": { "gain_I": 2, "gain_Q": 3 },
+            "q3:res-q3.ro": { "gain_I": 2, "gain_Q": 3 },
+            "q4:res-q4.ro": { "gain_I": 2, "gain_Q": 3 },
+            "q5:res-q5.ro": { "gain_I": 2, "gain_Q": 3 },
+            "q6:res-q6.ro": { "gain_I": 2, "gain_Q": 3 },
+            "q7:res-q7.ro": { "gain_I": 2, "gain_Q": 3 },
+            "q8:res-q8.ro": { "gain_I": 2, "gain_Q": 3 },
+            "q9:res-q9.ro": { "gain_I": 2, "gain_Q": 3 },
+            "q10:res-q10.ro": { "gain_I": 2, "gain_Q": 3 },
+            "qw:res-qw.ro": { "gain_I": 2, "gain_Q": 3 }
         },
         "output_att": {
             "q1:mw-q1.01": 20,
             "q2:mw-q2.01": 0,
             "q3:mw-q3.01": 0,
+            "q4:mw-q4.01": 0,
+            "q5:mw-q5.01": 0,
+            "q6:mw-q6.01": 0,
+            "q7:mw-q7.01": 0,
+            "q8:mw-q8.01": 0,
+            "q9:mw-q9.01": 0,
+            "q10:mw-q10.01": 20,
+            "qw:mw-qw.01": 0,
+
             "q1:res-q1.ro": 26,
             "q2:res-q2.ro": 26,
-            "q3:res-q3.ro": 26
+            "q3:res-q3.ro": 26,
+            "q4:res-q4.ro": 26,
+            "q5:res-q5.ro": 26,
+            "q6:res-q6.ro": 26,
+            "q7:res-q7.ro": 26,
+            "q8:res-q8.ro": 26,
+            "q9:res-q9.ro": 26,
+            "q10:res-q10.ro": 30,
+            "qw:res-qw.ro": 26
         },
         "input_att": {
             "q1:res-q1.ro": 10,
-            "q2:res-q2.ro": 10,
-            "q3:res-q3.ro": 10
-
+            "q2:res-q2.ro": 26,
+            "q3:res-q3.ro": 10,
+            "q4:res-q4.ro": 10,
+            "q5:res-q5.ro": 10,
+            "q6:res-q6.ro": 10,
+            "q7:res-q7.ro": 10,
+            "q8:res-q8.ro": 10,
+            "q9:res-q9.ro": 10,
+            "q10:res-q10.ro": 10,
+            "qw:res-qw.ro": 10
         },
         "modulation_frequencies": {
-            "q1:mw-q1.01": { "lo_freq": 3.0e9 },
+            "q1:mw-q1.01": { "lo_freq": 3.6e9 },
             "q2:mw-q2.01": { "lo_freq": 3.0e9 },
-            "q3:mw-q3.01": { "lo_freq": 3e9 },
+            "q3:mw-q3.01": { "lo_freq": 3.0e9 },
+            "q4:mw-q4.01": { "lo_freq": 3.0e9 },
+            "q5:mw-q5.01": { "lo_freq": 3.0e9 },
+            "q6:mw-q6.01": { "lo_freq": 3.0e9 },
+            "q7:mw-q7.01": { "lo_freq": 3.0e9 },
+            "q8:mw-q8.01": { "lo_freq": 3.0e9 },
+            "q9:mw-q9.01": { "lo_freq": 3.0e9 },
+            "q10:mw-q10.01": { "lo_freq": 3.3e9 },
+            "qw:mw-qw.01": { "lo_freq": 3.0e9 },
 
-            "q1:res-q1.ro": { "lo_freq": 4.8e9 },
-            "q2:res-q2.ro": { "lo_freq": 4.8e9 },
-            "q3:res-q3.ro": { "lo_freq": 4.8e9 }
-
+            "q1:res-q1.ro": { "lo_freq": 6e9 },
+            "q2:res-q2.ro": { "lo_freq": 6e9 },
+            "q3:res-q3.ro": { "lo_freq": 6e9 },
+            "q4:res-q4.ro": { "lo_freq": 6e9 },
+            "q5:res-q5.ro": { "lo_freq": 6e9 },
+            "q6:res-q6.ro": { "lo_freq": 6e9 },
+            "q7:res-q7.ro": { "lo_freq": 6e9 },
+            "q8:res-q8.ro": { "lo_freq": 6e9 },
+            "q9:res-q9.ro": { "lo_freq": 6e9 },
+            "q10:res-q10.ro": { "lo_freq": 6e9 },
+            "qw:res-qw.ro": { "lo_freq": 6e9 }
         }
     },
     "connectivity": {
         "graph": [
-            [ "cluster_A.module8.complex_output_0", "q1:res" ],
-            [ "cluster_A.module8.complex_output_0", "q2:res" ],
-            [ "cluster_A.module8.complex_output_0", "q3:res" ],
+            [ "cluster_A.module19.complex_output_0", "q1:res" ],
+            [ "cluster_A.module19.complex_output_0", "q2:res" ],
+            [ "cluster_A.module19.complex_output_0", "q3:res" ],
+            [ "cluster_A.module19.complex_output_0", "q4:res" ],
+            [ "cluster_A.module19.complex_output_0", "q5:res" ],
+            [ "cluster_A.module19.complex_output_0", "qw:res" ],
 
- 
+            [ "cluster_A.module19.complex_input_0", "q1:res" ],
+            [ "cluster_A.module19.complex_input_0", "q2:res" ],
+            [ "cluster_A.module19.complex_input_0", "q3:res" ],
+            [ "cluster_A.module19.complex_input_0", "q4:res" ],
+            [ "cluster_A.module19.complex_input_0", "q5:res" ],
+            [ "cluster_A.module19.complex_input_0", "qw:res" ],
 
-            [ "cluster_A.module8.complex_input_0", "q1:res" ],
-            [ "cluster_A.module8.complex_input_0", "q2:res" ],
-            [ "cluster_A.module8.complex_input_0", "q3:res" ],
+            [ "cluster_A.module20.complex_output_0", "q6:res" ],
+            [ "cluster_A.module20.complex_output_0", "q7:res" ],
+            [ "cluster_A.module20.complex_output_0", "q8:res" ],
+            [ "cluster_A.module20.complex_output_0", "q9:res" ],
+            [ "cluster_A.module20.complex_output_0", "q10:res" ],
 
+            [ "cluster_A.module20.complex_input_0", "q6:res" ],
+            [ "cluster_A.module20.complex_input_0", "q7:res" ],
+            [ "cluster_A.module20.complex_input_0", "q8:res" ],
+            [ "cluster_A.module20.complex_input_0", "q9:res" ],
+            [ "cluster_A.module20.complex_input_0", "q10:res" ],
 
+            [ "cluster_A.module10.complex_output_0", "q1:mw" ],
+            [ "cluster_A.module10.complex_output_1", "q2:mw" ],
+            [ "cluster_A.module12.complex_output_0", "q3:mw" ],
+            [ "cluster_A.module12.complex_output_1", "q4:mw" ],
+            [ "cluster_A.module14.complex_output_0", "q5:mw" ],
+            [ "cluster_A.module14.complex_output_1", "q6:mw" ],
+            [ "cluster_A.module16.complex_output_0", "q7:mw" ],
+            [ "cluster_A.module16.complex_output_1", "q8:mw" ],
+            [ "cluster_A.module17.complex_output_0", "q9:mw" ],
+            [ "cluster_A.module17.complex_output_1", "q10:mw" ],
+            [ "cluster_A.module18.complex_output_0", "qw:mw" ],
 
-            [ "cluster_A.module6.complex_output_0", "q1:mw" ],
-            [ "cluster_A.module6.complex_output_0", "q2:mw" ],
-            [ "cluster_A.module6.complex_output_0", "q3:mw" ]
+            [ "cluster_A.module2.real_output_0", "q1:fl" ],
+            [ "cluster_A.module2.real_output_1", "cpl1_2:fl" ],
+            [ "cluster_A.module2.real_output_2", "q2:fl" ],
+            [ "cluster_A.module2.real_output_3", "cpl2_3:fl" ],
 
+            [ "cluster_A.module4.real_output_0", "q3:fl" ],
+            [ "cluster_A.module4.real_output_1", "cpl3_4:fl" ],
+            [ "cluster_A.module4.real_output_2", "q4:fl" ],
+            [ "cluster_A.module4.real_output_3", "cpl4_5:fl" ],
+
+            [ "cluster_A.module6.real_output_0", "q5:fl" ],
+            [ "cluster_A.module6.real_output_1", "cpl5_6:fl" ],
+            [ "cluster_A.module6.real_output_2", "q6:fl" ],
+            [ "cluster_A.module6.real_output_3", "cpl6_7:fl" ],
+
+            [ "cluster_A.module8.real_output_0", "q7:fl" ],
+            [ "cluster_A.module8.real_output_1", "cpl7_8:fl" ],
+            [ "cluster_A.module8.real_output_2", "q8:fl" ],
+            [ "cluster_A.module8.real_output_3", "cpl8_9:fl" ],
+
+            [ "cluster_A.module9.real_output_0", "q9:fl" ],
+            [ "cluster_A.module9.real_output_1", "cpl9_10:fl" ],
+            [ "cluster_A.module9.real_output_2", "q10:fl" ]
         ]
     }
 }

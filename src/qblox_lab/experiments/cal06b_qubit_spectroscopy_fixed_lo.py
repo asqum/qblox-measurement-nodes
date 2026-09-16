@@ -1,10 +1,23 @@
-"""Full-bandwidth qubit spectroscopy using public Qblox Scheduler APIs."""
+"""Qubit spectroscopy on a single, unmodified drive LO.
+
+Test variant of ``cal06_qubit_spectroscopy_full_bandwidth.py``: it never issues
+``SetHardwareOption(("modulation_frequencies", "lo_freq"), ...)`` for the drive
+port, so it never touches (and never needs to restore) whatever drive LO is
+already configured in ``hw_config``. Only ``SetClockFrequency`` sweeps the
+digital IF within that fixed LO.
+
+Scope trade-off: without LO retuning, ``frequency_width`` is limited to
+whatever IF bandwidth the hardware supports around the qubit's currently
+configured drive LO (no branch splitting like cal06's ``MAXIMUM_BRANCH_WIDTH``
+mechanism) — the compiler raises if the requested sweep falls outside that
+range. Use this node to probe near a qubit's expected frequency without
+risking the drive LO being left in a different state than before the run;
+use cal06 for a genuine broadband search.
+"""
 
 from __future__ import annotations
 
-import warnings
 from dataclasses import dataclass
-from math import ceil
 from pathlib import Path
 from typing import Any, Literal, Mapping, Sequence
 
@@ -28,28 +41,9 @@ from xarray import Dataset
 from qblox_lab.config.hardware import apply_flux_config, load_flux_config
 
 
-MAXIMUM_BRANCH_WIDTH = 800e6
-
-
 @dataclass(frozen=True)
-class QubitSweepBranch:
-    """One bounded part of the complete qubit-frequency sweep."""
-
-    index: int
-    start: float
-    stop: float
-    points: int
-    lo_frequency: float
-
-    @property
-    def width(self) -> float:
-        """Frequency width of this branch in hertz."""
-        return self.stop - self.start
-
-
-@dataclass(frozen=True)
-class BroadbandQubitSpectroscopyResult:
-    """Fitted transition and processed broadband trace for one qubit."""
+class QubitSpectroscopyFixedLOResult:
+    """Fitted transition and processed trace for one qubit."""
 
     frequencies: np.ndarray
     transmission: np.ndarray
@@ -60,8 +54,8 @@ class BroadbandQubitSpectroscopyResult:
     analysis_object: QubitSpectroscopyAnalysis
 
 
-class BroadbandQubitSpectroscopy:
-    """Plan, execute, simulate, analyze, and apply a segmented qubit scan."""
+class QubitSpectroscopyFixedLO:
+    """Plan, execute, simulate, and analyze qubit spectroscopy on a fixed LO."""
 
     def __init__(
         self,
@@ -82,11 +76,9 @@ class BroadbandQubitSpectroscopy:
         self.flux_config = (
             None if flux_config is None else load_flux_config(flux_config)
         )
-        self.branches: dict[str, tuple[QubitSweepBranch, ...]] = {}
-        self._restore_lo_frequencies: dict[str, float] = {}
         self.schedule: Schedule | None = None
         self.dataset: Dataset | None = None
-        self.results: dict[str, BroadbandQubitSpectroscopyResult] = {}
+        self.results: dict[str, QubitSpectroscopyFixedLOResult] = {}
         self.figures: dict[str, Any] = {}
 
     @staticmethod
@@ -97,109 +89,6 @@ class BroadbandQubitSpectroscopy:
     def _readout_port_clock(qubit: Any) -> str:
         return f"{qubit.ports.readout}-{qubit.name}.ro"
 
-    @staticmethod
-    def plan_branches(
-        *,
-        frequency_center: float,
-        frequency_width: float,
-        frequency_points: int,
-        maximum_branch_width: float = MAXIMUM_BRANCH_WIDTH,
-    ) -> tuple[QubitSweepBranch, ...]:
-        """Split an even frequency grid into branches no wider than requested."""
-        if frequency_center <= 0:
-            raise ValueError("frequency_center must be positive.")
-        if frequency_width <= 0:
-            raise ValueError("frequency_width must be positive.")
-        if maximum_branch_width <= 0 or maximum_branch_width > MAXIMUM_BRANCH_WIDTH:
-            raise ValueError(
-                "maximum_branch_width must be positive and at most 800 MHz."
-            )
-
-        branch_count = ceil(frequency_width / maximum_branch_width)
-        if frequency_points < 2 * branch_count:
-            raise ValueError(
-                "frequency_points must provide at least two points per sweep branch."
-            )
-
-        full_grid = np.linspace(
-            frequency_center - frequency_width / 2,
-            frequency_center + frequency_width / 2,
-            frequency_points,
-        )
-        branches = []
-        for index, indices in enumerate(
-            np.array_split(np.arange(frequency_points), branch_count)
-        ):
-            start = float(full_grid[indices[0]])
-            stop = float(full_grid[indices[-1]])
-            branches.append(
-                QubitSweepBranch(
-                    index=index,
-                    start=start,
-                    stop=stop,
-                    points=int(indices.size),
-                    lo_frequency=(start + stop) / 2,
-                )
-            )
-
-        return tuple(branches)
-
-    def _configured_lo_frequencies(
-        self,
-        restore_drive_lo_frequency: float | None,
-    ) -> dict[str, float]:
-        port_clocks = tuple(self._drive_port_clock(qubit) for qubit in self.qubits)
-        if restore_drive_lo_frequency is not None:
-            if restore_drive_lo_frequency <= 0:
-                raise ValueError("restore_drive_lo_frequency must be positive.")
-            return dict.fromkeys(port_clocks, restore_drive_lo_frequency)
-
-        self.hardware_agent.connect_clusters()
-        hardware_options = self.hardware_agent.hardware_configuration.hardware_options
-        modulation_frequencies = hardware_options.modulation_frequencies
-        restored = {}
-        for port_clock in port_clocks:
-            if (
-                modulation_frequencies is None
-                or port_clock not in modulation_frequencies
-                or modulation_frequencies[port_clock].lo_freq is None
-            ):
-                raise ValueError(
-                    f"No configured drive LO frequency was found for {port_clock!r}. "
-                    "Pass restore_drive_lo_frequency explicitly."
-                )
-            restored[port_clock] = float(modulation_frequencies[port_clock].lo_freq)
-        return restored
-
-    def _restoration_schedule(self, lo_frequencies: Mapping[str, float]) -> Schedule:
-        schedule = Schedule("restore_qubit_drive_lo")
-        pulse_schedule = Schedule("apply_restored_qubit_drive_lo")
-        parallel_reference = None
-
-        for qubit in self.qubits:
-            port_clock = self._drive_port_clock(qubit)
-            schedule.add(
-                SetHardwareOption(
-                    ("modulation_frequencies", "lo_freq"),
-                    lo_frequencies[port_clock],
-                    port=port_clock,
-                ),
-                rel_time=None,
-            )
-            pulse = SquarePulse(
-                amplitude=0.0,
-                duration=4e-9,
-                port=qubit.ports.microwave,
-                clock=f"{qubit.name}.01",
-            )
-            if parallel_reference is None:
-                parallel_reference = pulse_schedule.add(pulse)
-            else:
-                pulse_schedule.add(pulse, ref_op=parallel_reference, ref_pt="start")
-
-        schedule.add(pulse_schedule, rel_time=None)
-        return schedule
-
     def build_schedule(
         self,
         *,
@@ -209,18 +98,18 @@ class BroadbandQubitSpectroscopy:
         repetitions: int,
         drive_amplitude: float,
         drive_duration: float,
-        restore_drive_lo_frequency: float | None = None,
-        maximum_branch_width: float = MAXIMUM_BRANCH_WIDTH,
         readout_amplitude: float | None = None,
         drive_output_attenuation: int | None = None,
         readout_output_attenuation: int | None = None,
         readout_input_attenuation: int | None = None,
     ) -> Schedule:
-        """Build one experiment containing all drive-LO branches and restoration.
+        """Build one experiment that sweeps the IF around each qubit's fixed LO.
 
         ``frequency_center`` defaults to each qubit's own configured ``f01``
         when omitted, so multiple qubits are swept around their own centers
-        instead of sharing one value.
+        instead of sharing one value. Unlike cal06, the drive LO is never
+        changed, so ``frequency_width`` must fit inside the IF bandwidth the
+        hardware already supports around the currently configured LO.
         """
         if repetitions < 1:
             raise ValueError("repetitions must be positive.")
@@ -228,6 +117,12 @@ class BroadbandQubitSpectroscopy:
             raise ValueError("drive_amplitude must be greater than 0 and at most 1.")
         if drive_duration <= 0:
             raise ValueError("drive_duration must be positive.")
+        if frequency_width <= 0:
+            raise ValueError("frequency_width must be positive.")
+        if frequency_points < 2:
+            raise ValueError("frequency_points must be at least 2.")
+        if frequency_center is not None and frequency_center <= 0:
+            raise ValueError("frequency_center must be positive.")
         if readout_amplitude is not None and not 0 <= readout_amplitude <= 1:
             raise ValueError("readout_amplitude must be between 0 and 1.")
         for name, attenuation in (
@@ -240,22 +135,9 @@ class BroadbandQubitSpectroscopy:
             ):
                 raise ValueError(f"{name} must be an even value from 0 through 30 dB.")
 
-        qubit_branches = {
-            qubit.name: self.plan_branches(
-                frequency_center=(
-                    float(qubit.clock_freqs.f01)
-                    if frequency_center is None
-                    else frequency_center
-                ),
-                frequency_width=frequency_width,
-                frequency_points=frequency_points,
-                maximum_branch_width=maximum_branch_width,
-            )
-            for qubit in self.qubits
-        }
-        branch_count = len(next(iter(qubit_branches.values())))
-        restored_los = self._configured_lo_frequencies(restore_drive_lo_frequency)
-        schedule = Schedule("broadband_qubit_spectroscopy")
+        schedule = Schedule("qubit_spectroscopy_fixed_lo")
+        measurement_schedule = Schedule("qubit_spectroscopy_fixed_lo_measurement")
+        parallel_reference = None
 
         for qubit in self.qubits:
             drive_port_clock = self._drive_port_clock(qubit)
@@ -280,76 +162,55 @@ class BroadbandQubitSpectroscopy:
                         rel_time=None,
                     )
 
-        for branch_index in range(branch_count):
-            measurement_schedule = Schedule(
-                f"broadband_qubit_spectroscopy_branch_{branch_index + 1}"
+            center = (
+                float(qubit.clock_freqs.f01)
+                if frequency_center is None
+                else frequency_center
             )
-            parallel_reference = None
-
-            for qubit in self.qubits:
-                branch = qubit_branches[qubit.name][branch_index]
-                drive_port_clock = self._drive_port_clock(qubit)
-                schedule.add(
-                    SetHardwareOption(
-                        ("modulation_frequencies", "lo_freq"),
-                        branch.lo_frequency,
-                        port=drive_port_clock,
-                    ),
-                    rel_time=None,
-                )
-
-                qubit_schedule = Schedule(
-                    f"broadband_qubit_spectroscopy_{qubit.name}_"
-                    f"branch_{branch.index + 1}"
-                )
-                with qubit_schedule.loop(arange(0, repetitions, 1, DType.NUMBER)):
-                    with qubit_schedule.loop(
-                        linspace(
-                            branch.start,
-                            branch.stop,
-                            branch.points,
-                            DType.FREQUENCY,
-                        )
-                    ) as frequency:
-                        qubit_schedule.add(Reset(qubit.name))
-                        qubit_schedule.add(
-                            SetClockFrequency(
-                                clock=f"{qubit.name}.01",
-                                frequency=frequency,
-                            )
-                        )
-                        qubit_schedule.add(
-                            SquarePulse(
-                                amplitude=drive_amplitude,
-                                duration=drive_duration,
-                                port=qubit.ports.microwave,
-                                clock=f"{qubit.name}.01",
-                            )
-                        )
-                        qubit_schedule.add(
-                            Measure(
-                                qubit.name,
-                                coords={f"frequency_{qubit.name}": frequency},
-                                acq_channel=f"S21_{qubit.name}",
-                            )
-                        )
-                        qubit_schedule.add(IdlePulse(4e-9))
-
-                if parallel_reference is None:
-                    parallel_reference = measurement_schedule.add(qubit_schedule)
-                else:
-                    measurement_schedule.add(
-                        qubit_schedule,
-                        ref_op=parallel_reference,
-                        ref_pt="start",
+            qubit_schedule = Schedule(f"qubit_spectroscopy_fixed_lo_{qubit.name}")
+            with qubit_schedule.loop(arange(0, repetitions, 1, DType.NUMBER)):
+                with qubit_schedule.loop(
+                    linspace(
+                        center - frequency_width / 2,
+                        center + frequency_width / 2,
+                        frequency_points,
+                        DType.FREQUENCY,
                     )
+                ) as frequency:
+                    qubit_schedule.add(Reset(qubit.name))
+                    qubit_schedule.add(
+                        SetClockFrequency(
+                            clock=f"{qubit.name}.01",
+                            frequency=frequency,
+                        )
+                    )
+                    qubit_schedule.add(
+                        SquarePulse(
+                            amplitude=drive_amplitude,
+                            duration=drive_duration,
+                            port=qubit.ports.microwave,
+                            clock=f"{qubit.name}.01",
+                        )
+                    )
+                    qubit_schedule.add(
+                        Measure(
+                            qubit.name,
+                            coords={f"frequency_{qubit.name}": frequency},
+                            acq_channel=f"S21_{qubit.name}",
+                        )
+                    )
+                    qubit_schedule.add(IdlePulse(4e-9))
 
-            schedule.add(measurement_schedule, rel_time=None)
+            if parallel_reference is None:
+                parallel_reference = measurement_schedule.add(qubit_schedule)
+            else:
+                measurement_schedule.add(
+                    qubit_schedule,
+                    ref_op=parallel_reference,
+                    ref_pt="start",
+                )
 
-        schedule.add(self._restoration_schedule(restored_los), rel_time=None)
-
-        self.branches = qubit_branches
-        self._restore_lo_frequencies = restored_los
+        schedule.add(measurement_schedule, rel_time=None)
         self.schedule = schedule
         return schedule
 
@@ -371,14 +232,14 @@ class BroadbandQubitSpectroscopy:
         few frequency points, without the loop, purely for visual inspection
         of the pulse shape.
         """
-        preview_schedule = Schedule("broadband_qubit_spectroscopy_preview")
+        preview_schedule = Schedule("qubit_spectroscopy_fixed_lo_preview")
         parallel_reference = None
         for qubit in self.qubits:
             center = (
                 float(qubit.clock_freqs.f01) if frequency_center is None else frequency_center
             )
             clock = f"{qubit.name}.01"
-            qubit_schedule = Schedule(f"broadband_qubit_spectroscopy_preview_{qubit.name}")
+            qubit_schedule = Schedule(f"qubit_spectroscopy_fixed_lo_preview_{qubit.name}")
             for offset in frequency_offsets:
                 qubit_schedule.add(Reset(qubit.name))
                 qubit_schedule.add(SetClockFrequency(clock=clock, frequency=center + offset))
@@ -414,19 +275,13 @@ class BroadbandQubitSpectroscopy:
         repetitions: int,
         drive_amplitude: float,
         drive_duration: float,
-        restore_drive_lo_frequency: float | None = None,
-        maximum_branch_width: float = MAXIMUM_BRANCH_WIDTH,
         readout_amplitude: float | None = None,
         drive_output_attenuation: int | None = None,
         readout_output_attenuation: int | None = None,
         readout_input_attenuation: int | None = None,
         timeout: int = 300,
     ) -> Dataset:
-        """Acquire every branch in one run and return one combined dataset.
-
-        ``frequency_center`` defaults to each qubit's own configured ``f01``
-        when omitted (see ``build_schedule``).
-        """
+        """Build and execute the fixed-LO sweep; the drive LO is never touched."""
         schedule = self.build_schedule(
             frequency_center=frequency_center,
             frequency_width=frequency_width,
@@ -434,14 +289,11 @@ class BroadbandQubitSpectroscopy:
             repetitions=repetitions,
             drive_amplitude=drive_amplitude,
             drive_duration=drive_duration,
-            restore_drive_lo_frequency=restore_drive_lo_frequency,
-            maximum_branch_width=maximum_branch_width,
             readout_amplitude=readout_amplitude,
             drive_output_attenuation=drive_output_attenuation,
             readout_output_attenuation=readout_output_attenuation,
             readout_input_attenuation=readout_input_attenuation,
         )
-        restored_los = self._restore_lo_frequencies
 
         if self.flux_config is not None:
             apply_flux_config(
@@ -450,25 +302,7 @@ class BroadbandQubitSpectroscopy:
                 qubits=self.qubit_names,
             )
 
-        self.dataset = None
-        try:
-            self.dataset = self.hardware_agent.run(schedule, timeout=timeout)
-        except BaseException:
-            try:
-                self.hardware_agent.run(
-                    self._restoration_schedule(restored_los),
-                    timeout=timeout,
-                    save_to_experiment=False,
-                    save_snapshot=False,
-                )
-            except Exception as restoration_error:
-                warnings.warn(
-                    f"Automatic drive-LO restoration also failed: {restoration_error}",
-                    RuntimeWarning,
-                    stacklevel=2,
-                )
-            raise
-
+        self.dataset = self.hardware_agent.run(schedule, timeout=timeout)
         self.results = {}
         return self.dataset
 
@@ -476,8 +310,8 @@ class BroadbandQubitSpectroscopy:
         self,
         *,
         frequency_center: float | None = None,
-        frequency_width: float = 1.6e9,
-        frequency_points: int = 1601,
+        frequency_width: float = 200e6,
+        frequency_points: int = 401,
         qubit_frequency: float | None = None,
         linewidth: float | None = None,
         baseline: float = 1.0,
@@ -516,7 +350,7 @@ class BroadbandQubitSpectroscopy:
         random_generator = np.random.default_rng(seed)
         dataset = Dataset(
             attrs={
-                "name": "Simulated broadband qubit spectroscopy",
+                "name": "Simulated fixed-LO qubit spectroscopy",
                 "tuid": "simulated",
                 "simulated": True,
                 "simulation_model": "qblox_scheduler.lorentzian_func",
@@ -580,7 +414,7 @@ class BroadbandQubitSpectroscopy:
         self.results = {}
         return dataset
 
-    def analysis(self) -> dict[str, BroadbandQubitSpectroscopyResult]:
+    def analysis(self) -> dict[str, QubitSpectroscopyFixedLOResult]:
         """Average repetitions and run the scheduler's public Lorentzian analysis."""
         if self.dataset is None:
             raise RuntimeError("Call run_measurement() or simulated_data() first.")
@@ -628,7 +462,7 @@ class BroadbandQubitSpectroscopy:
                 },
                 attrs={
                     **dict(self.dataset.attrs),
-                    "name": f"Broadband qubit spectroscopy: {qubit.name}",
+                    "name": f"Fixed-LO qubit spectroscopy: {qubit.name}",
                     "tuid": self.dataset.attrs.get("tuid", "simulated"),
                 },
             )
@@ -658,7 +492,7 @@ class BroadbandQubitSpectroscopy:
                 fit_result = analysis_object.fit_results["Lorentzian_peak"]
                 fitted_linewidth = 2 * abs(float(fit_result.params["width"].value))
 
-            results[qubit.name] = BroadbandQubitSpectroscopyResult(
+            results[qubit.name] = QubitSpectroscopyFixedLOResult(
                 frequencies=unique_frequencies,
                 transmission=averaged_transmission,
                 magnitude=magnitude,

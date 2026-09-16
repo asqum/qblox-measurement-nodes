@@ -1,8 +1,38 @@
-"""Resonator flux spectroscopy using public Qblox Scheduler APIs."""
+"""Resonator spectroscopy versus coupler flux using public Qblox Scheduler APIs.
+
+Ported from the Quantum Machines reference
+``02e_resonator_spectroscopy_vs_coupler_flux.py``: sweep a tunable coupler's
+own DC flux bias while reading out the two resonators it couples, to find the
+coupler operating point (independent-flux mode only, same
+``resolve_flux_offset_parameter`` + ``SetParameter`` mechanism as
+``cal05_resonator_flux_spectroscopy.py``/``cal08_qubit_flux_spectroscopy.py``
+— just applied to the coupler's own flux line instead of a qubit's). The two
+measured qubits are parked at their own idle flux bias for the whole sweep and
+are never touched by the schedule.
+
+Two things the QM reference does that this node deliberately does not port:
+
+* Coupler-induced qubit-flux crosstalk compensation (the reference's
+  ``comp_flux_qubit`` term, which nudges each qubit's own flux line in lock
+  step with the coupler sweep). That requires the in-schedule joint/dynamic
+  flux mechanism tracked as gap 1 in ``docs/calibration_node_plan.md`` section
+  3, which is not yet available.
+* The reference's bespoke decouple-offset dip-detection analysis (detrended
+  percentile fit, per-row dip finding, minima clustering). This node instead
+  reuses ``ResonatorFluxSpectroscopyAnalysis`` (the same scheduler analysis
+  class ``cal05`` already uses) since the underlying resonator-vs-flux physics
+  is the same regardless of which physical line is swept — it reports a
+  sweet spot/period fit, not a dip-based decouple offset.
+
+Coupler flux config gap (``docs/calibration_node_plan.md`` gap 2): the coupler
+port fallback in ``apply_flux_config``/``resolve_flux_offset_parameter`` has
+only been validated against dummy connections so far, not a real coupler DC
+ramp on hardware. Validate this node against ``create_dummy_connections=True``
+before running it on real hardware.
+"""
 
 from __future__ import annotations
 
-import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -18,124 +48,19 @@ from qblox_scheduler.experiments import SetHardwareOption, SetParameter
 from qblox_scheduler.operations import IdlePulse, Measure
 from qblox_scheduler.operations.expressions import DType
 from qblox_scheduler.operations.loop_domains import arange, linspace
-from scipy.optimize import OptimizeWarning, curve_fit
-from uncertainties import correlated_values, ufloat
 from xarray import Dataset
 
 from qblox_lab.config.hardware import (
+    apply_flux_config,
     load_flux_config,
     resolve_flux_offset_parameter,
     update_flux_config,
 )
 
 
-def _fit_flux_curve(flux_offsets: np.ndarray, resonance_frequencies: np.ndarray) -> dict[str, Any]:
-    """Robustly fit ``cos_func`` to the per-flux arg-min resonance trace.
-
-    ``ResonatorFluxSpectroscopyAnalysis.run_fitting`` first extracts a trace by
-    keeping only the points whose magnitude is a 3-sigma outlier within their
-    flux column, then fits that trace. On a shallow or noisy dip this can leave
-    only a handful of usable flux points, which lets the sinusoid fit lock onto
-    a degenerate solution instead of the real oscillation. This fits every
-    already-computed arg-min point instead, with an FFT-seeded frequency guess
-    and several phase seeds to avoid local minima, and returns quantities in
-    the same ufloat-valued shape as ``quantities_of_interest`` so it can drop
-    straight into the scheduler's own plotting and reporting code.
-    """
-    quantities: dict[str, Any] = {"fit_success": False}
-    if flux_offsets.size < 4:
-        quantities["fit_msg"] = "Not enough flux points to fit a curve."
-        return quantities
-
-    offset_guess = float(np.mean(resonance_frequencies))
-    amplitude_guess = float((resonance_frequencies.max() - resonance_frequencies.min()) / 2)
-    if amplitude_guess == 0:
-        quantities["fit_msg"] = "The resonance trace is flat; no oscillation to fit."
-        return quantities
-
-    spacing = float(np.mean(np.diff(flux_offsets)))
-    spectrum = np.fft.rfft(resonance_frequencies - offset_guess)
-    spectrum_frequencies = np.fft.rfftfreq(flux_offsets.size, d=spacing)
-    if spectrum_frequencies.size < 2:
-        quantities["fit_msg"] = "Not enough flux points to estimate a frequency."
-        return quantities
-    peak_index = int(np.argmax(np.abs(spectrum[1:]))) + 1
-    frequency_guess = float(spectrum_frequencies[peak_index])
-    if frequency_guess <= 0:
-        quantities["fit_msg"] = "Could not estimate an oscillation frequency."
-        return quantities
-
-    best_parameters: np.ndarray | None = None
-    best_covariance: np.ndarray | None = None
-    best_residual = np.inf
-    for phase_guess in np.linspace(0, 2 * np.pi, 8, endpoint=False):
-        try:
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", OptimizeWarning)
-                parameters, covariance = curve_fit(
-                    cos_func,
-                    flux_offsets,
-                    resonance_frequencies,
-                    p0=[frequency_guess, amplitude_guess, offset_guess, phase_guess],
-                    maxfev=10_000,
-                )
-        except RuntimeError:
-            continue
-        residual = float(
-            np.sum((cos_func(flux_offsets, *parameters) - resonance_frequencies) ** 2)
-        )
-        if residual < best_residual:
-            best_residual = residual
-            best_parameters = parameters
-            best_covariance = covariance
-
-    if best_parameters is None:
-        quantities["fit_msg"] = "The cosine fit did not converge from any phase seed."
-        return quantities
-
-    if np.all(np.isfinite(best_covariance)):
-        try:
-            frequency, amplitude, center, shift = correlated_values(best_parameters, best_covariance)
-        except np.linalg.LinAlgError:
-            frequency, amplitude, center, shift = (ufloat(value, 0.0) for value in best_parameters)
-    else:
-        frequency, amplitude, center, shift = (ufloat(value, 0.0) for value in best_parameters)
-
-    quantities.update(
-        {
-            "fit_success": True,
-            "frequency": frequency,
-            "amplitude": amplitude,
-            "center": center,
-            # create_figures() plots with phase = shift - pi/2, so bias the
-            # stored "shift" here to recover our fitted phase exactly.
-            "shift": shift + np.pi / 2,
-        }
-    )
-
-    root_indices = np.arange(-20, 20, 1)
-    roots = [(root_index * np.pi - shift) / (2 * np.pi * frequency) for root_index in root_indices]
-    visible_roots = sorted(
-        (root for root in roots if flux_offsets.min() <= root.nominal_value <= flux_offsets.max()),
-        key=lambda root: root.nominal_value,
-    )
-    for root_index, root in enumerate(visible_roots):
-        quantities[f"sweetspot_{root_index}"] = root
-
-    quantities["fit_msg"] = (
-        f"Summary (robust fit):\namplitude: {amplitude:S}\n"
-        f"frequency: {frequency:S}\nshift: {shift:S}\ncenter: {center:S}\n"
-        "\nSweetspots:\n"
-        + "\n".join(
-            f"sweetspot {index}: {root:S}" for index, root in enumerate(visible_roots)
-        )
-    )
-    return quantities
-
-
 @dataclass(frozen=True)
-class ResonatorFluxResult:
-    """Processed flux-frequency grid and scheduler fit for one resonator."""
+class ResonatorCouplerFluxResult:
+    """Processed coupler-flux-frequency grid and scheduler fit for one resonator."""
 
     flux_offsets: np.ndarray
     frequencies: np.ndarray
@@ -149,73 +74,76 @@ class ResonatorFluxResult:
     analysis_object: ResonatorFluxSpectroscopyAnalysis
 
 
-class ResonatorFluxSpectroscopy:
-    """Build, execute, simulate, and analyze resonator spectroscopy versus flux."""
+class ResonatorCouplerFluxSpectroscopy:
+    """Build, execute, simulate, and analyze resonator spectroscopy versus coupler flux."""
 
     def __init__(
         self,
         hardware_agent: HardwareAgent,
         qubits: Sequence[str],
-        flux_config: Mapping[str, Any] | str | Path | None = None,
+        coupler: str,
+        flux_config: Mapping[str, Any] | str | Path,
     ) -> None:
         if not qubits:
             raise ValueError("At least one qubit name is required.")
         if len(set(qubits)) != len(qubits):
             raise ValueError("Qubit names must be unique.")
+        if not coupler:
+            raise ValueError("A coupler name is required.")
 
         self.hardware_agent = hardware_agent
         self.qubit_names = tuple(qubits)
         self.qubits = tuple(
             hardware_agent.quantum_device.get_element(name) for name in self.qubit_names
         )
-        self.flux_config = None
-        self.flux_parameters: dict[str, Any] = {}
-        if flux_config is not None:
-            normalized_flux_config = load_flux_config(flux_config)
-            missing_flux_parameters = set(self.qubit_names) - set(
-                normalized_flux_config["flux_biases"]
+        self.coupler_name = coupler
+
+        normalized_flux_config = load_flux_config(flux_config)
+        coupler_setting = normalized_flux_config["flux_biases"].get(self.coupler_name)
+        if coupler_setting is None:
+            raise ValueError(
+                f"Flux configuration is missing the coupler {self.coupler_name!r}."
             )
-            if missing_flux_parameters:
-                raise ValueError(
-                    "Flux configuration is missing measured qubits: "
-                    f"{sorted(missing_flux_parameters)}."
-                )
-            self.flux_config = normalized_flux_config
+        if coupler_setting.get("port") is None:
+            raise ValueError(
+                f"Flux-bias entry for coupler {self.coupler_name!r} must declare an "
+                "explicit 'port' (couplers are not registered QuantumDevice elements)."
+            )
+        self.flux_config = normalized_flux_config
+
         self.schedule: Schedule | None = None
         self.dataset: Dataset | None = None
-        self.results: dict[str, ResonatorFluxResult] = {}
+        self.results: dict[str, ResonatorCouplerFluxResult] = {}
         self.figures: dict[str, Any] = {}
+        self._coupler_flux_parameter: Any = None
 
     @staticmethod
     def _readout_port_clock(qubit: Any) -> str:
         return f"{qubit.ports.readout}-{qubit.name}.ro"
 
-    def _prepare_flux_parameters(self) -> dict[str, Any]:
-        """Resolve sweep parameters and configure safe public QCoDeS ramping."""
-        if self.flux_parameters:
-            return self.flux_parameters
+    def _park_readout_qubits_at_idle(self) -> None:
+        """Ramp the measured qubits to their own idle flux bias before sweeping."""
+        parkable_qubits = tuple(
+            name for name in self.qubit_names if name in self.flux_config["flux_biases"]
+        )
+        if parkable_qubits:
+            apply_flux_config(self.hardware_agent, self.flux_config, qubits=parkable_qubits)
 
-        parameters: dict[str, Any] = {}
-        for qubit in self.qubits:
-            parameter = resolve_flux_offset_parameter(
-                self.hardware_agent,
-                qubit.ports.flux,
-            )
-            # Prime the QCoDeS cache before using ``step`` to avoid a jump from
-            # an unknown starting value when the first sweep point is applied.
-            parameter.get()
-            if self.flux_config is None:
-                parameter.step = 0.3e-3
-                parameter.inter_delay = 100e-9
-            else:
-                setting = self.flux_config["flux_biases"][qubit.name]
-                parameter.step = setting["ramp_step"]
-                parameter.inter_delay = setting["inter_delay"]
-                parameter.validate(setting["value"])
-            parameters[qubit.name] = parameter
+    def _prepare_coupler_flux_parameter(self) -> Any:
+        """Resolve the coupler's sweep parameter and configure safe public ramping."""
+        if self._coupler_flux_parameter is not None:
+            return self._coupler_flux_parameter
 
-        self.flux_parameters = parameters
-        return parameters
+        setting = self.flux_config["flux_biases"][self.coupler_name]
+        parameter = resolve_flux_offset_parameter(self.hardware_agent, setting["port"])
+        # Prime the QCoDeS cache before using ``step`` to avoid a jump from an
+        # unknown starting value when the first sweep point is applied.
+        parameter.get()
+        parameter.step = setting["ramp_step"]
+        parameter.inter_delay = setting["inter_delay"]
+        parameter.validate(setting["value"])
+        self._coupler_flux_parameter = parameter
+        return parameter
 
     def _build_measurement_schedule(
         self,
@@ -227,10 +155,10 @@ class ResonatorFluxSpectroscopy:
         flux_offset: Any,
         flux_settle_time: float,
     ) -> Schedule:
-        measurement_schedule = Schedule("resonator_flux_spectroscopy_measurement")
+        measurement_schedule = Schedule("resonator_coupler_flux_spectroscopy_measurement")
         parallel_reference = None
         for qubit in self.qubits:
-            qubit_schedule = Schedule(f"resonator_flux_spectroscopy_{qubit.name}")
+            qubit_schedule = Schedule(f"resonator_coupler_flux_spectroscopy_{qubit.name}")
             center = (
                 qubit.clock_freqs.readout
                 if frequency_center is None
@@ -248,7 +176,7 @@ class ResonatorFluxSpectroscopy:
                 ) as frequency:
                     coordinates = {
                         f"frequency_{qubit.name}": frequency,
-                        f"flux_{qubit.name}": flux_offset,
+                        f"flux_{self.coupler_name}": flux_offset,
                     }
                     qubit_schedule.add(
                         Measure(
@@ -286,7 +214,7 @@ class ResonatorFluxSpectroscopy:
         input_attenuation: int | None = None,
         readout_lo_frequency: float | None = None,
     ) -> Schedule:
-        """Build the two-dimensional schedule and resolve its flux parameters."""
+        """Build the two-dimensional schedule and resolve the coupler's flux parameter."""
         if frequency_center is not None and frequency_center <= 0:
             raise ValueError("frequency_center must be positive.")
         if frequency_width <= 0:
@@ -316,7 +244,7 @@ class ResonatorFluxSpectroscopy:
         if readout_lo_frequency is not None and readout_lo_frequency <= 0:
             raise ValueError("readout_lo_frequency must be positive.")
 
-        schedule = Schedule("resonator_flux_spectroscopy")
+        schedule = Schedule("resonator_coupler_flux_spectroscopy")
         for qubit in self.qubits:
             port_clock = self._readout_port_clock(qubit)
             if readout_amplitude is not None:
@@ -348,19 +276,15 @@ class ResonatorFluxSpectroscopy:
                     rel_time=None,
                 )
 
-        flux_parameters = self._prepare_flux_parameters()
+        coupler_flux_parameter = self._prepare_coupler_flux_parameter()
         with schedule.loop(
             linspace(flux_start, flux_stop, flux_points, DType.AMPLITUDE),
             rel_time=None,
         ) as flux_offset:
-            for qubit in self.qubits:
-                schedule.add(
-                    SetParameter(
-                        flux_parameters[qubit.name],
-                        flux_offset,
-                    ),
-                    rel_time=None,
-                )
+            schedule.add(
+                SetParameter(coupler_flux_parameter, flux_offset),
+                rel_time=None,
+            )
             measurement_schedule = self._build_measurement_schedule(
                 frequency_center=frequency_center,
                 frequency_width=frequency_width,
@@ -373,38 +297,26 @@ class ResonatorFluxSpectroscopy:
         self.schedule = schedule
         return schedule
 
-    def read_flux_biases(self) -> dict[str, float]:
-        """Read the live DC biases through their public QCoDeS parameters."""
-        flux_parameters = self._prepare_flux_parameters()
-        return {
-            qubit_name: float(flux_parameters[qubit_name].get())
-            for qubit_name in self.qubit_names
-        }
+    def read_flux_bias(self) -> float:
+        """Read the coupler's live DC bias through its public QCoDeS parameter."""
+        return float(self._prepare_coupler_flux_parameter().get())
 
-    def apply_flux_biases(
-        self,
-        flux_biases: Mapping[str, float],
-    ) -> dict[str, float]:
-        """Ramp explicitly selected biases onto the live flux outputs."""
-        flux_parameters = self._prepare_flux_parameters()
-        unknown = set(flux_biases) - set(self.qubit_names)
-        if unknown:
-            raise ValueError(f"Unknown measured qubits: {sorted(unknown)}.")
-        for qubit_name, value in flux_biases.items():
-            numeric_value = float(value)
-            if not np.isfinite(numeric_value):
-                raise ValueError(f"Flux bias for {qubit_name!r} must be finite.")
-            flux_parameters[qubit_name].set(numeric_value)
-        return self.read_flux_biases()
+    def apply_flux_bias(self, value: float) -> float:
+        """Ramp an explicitly selected bias onto the coupler's live flux output."""
+        numeric_value = float(value)
+        if not np.isfinite(numeric_value):
+            raise ValueError("Flux bias must be finite.")
+        self._prepare_coupler_flux_parameter().set(numeric_value)
+        return self.read_flux_bias()
 
-    def save_flux_biases(
+    def save_flux_bias(
         self,
         path: str | Path,
-        flux_biases: Mapping[str, float] | None = None,
+        value: float | None = None,
     ) -> Path:
-        """Persist selected, or currently applied, biases to the sidecar file."""
-        selected_biases = self.read_flux_biases() if flux_biases is None else flux_biases
-        return update_flux_config(path, selected_biases)
+        """Persist the selected, or currently applied, coupler bias to the sidecar file."""
+        selected_value = self.read_flux_bias() if value is None else float(value)
+        return update_flux_config(path, {self.coupler_name: selected_value})
 
     def run_measurement(
         self,
@@ -423,7 +335,8 @@ class ResonatorFluxSpectroscopy:
         readout_lo_frequency: float | None = None,
         timeout: int = 300,
     ) -> Dataset:
-        """Execute the scan and restore the configured bias, or 0 V by default."""
+        """Park the measured qubits at idle, then sweep the coupler's own flux."""
+        self._park_readout_qubits_at_idle()
         schedule = self.build_schedule(
             frequency_center=frequency_center,
             frequency_width=frequency_width,
@@ -439,34 +352,25 @@ class ResonatorFluxSpectroscopy:
             readout_lo_frequency=readout_lo_frequency,
         )
         self.dataset = None
-        restore_flux_biases = (
-            {qubit_name: 0.0 for qubit_name in self.qubit_names}
-            if self.flux_config is None
-            else {
-                qubit_name: float(
-                    self.flux_config["flux_biases"][qubit_name]["value"]
-                )
-                for qubit_name in self.qubit_names
-            }
-        )
+        restore_flux_bias = float(self.flux_config["flux_biases"][self.coupler_name]["value"])
         try:
             self.dataset = self.hardware_agent.run(schedule, timeout=timeout)
         except BaseException:
             try:
-                self.apply_flux_biases(restore_flux_biases)
+                self.apply_flux_bias(restore_flux_bias)
             except Exception as restoration_error:
                 raise RuntimeError(
-                    "Measurement failed and the target flux biases could not be "
-                    "restored."
+                    "Measurement failed and the target coupler flux bias could not "
+                    "be restored."
                 ) from restoration_error
             raise
 
         try:
-            self.apply_flux_biases(restore_flux_biases)
+            self.apply_flux_bias(restore_flux_bias)
         except Exception as restoration_error:
             raise RuntimeError(
-                "Measurement completed, but the target flux biases could not be "
-                "restored."
+                "Measurement completed, but the target coupler flux bias could not "
+                "be restored."
             ) from restoration_error
         self.results = {}
         return self.dataset
@@ -493,12 +397,13 @@ class ResonatorFluxSpectroscopy:
         asymmetry: float = 0.0,
         seed: int | None = None,
     ) -> Dataset:
-        """Generate noisy complex flux spectroscopy using scheduler fit functions.
+        """Generate noisy complex resonator-vs-coupler-flux spectroscopy data.
 
-        The configured readout frequency is the default maximum resonance frequency.
-        Typical defaults are used for parameters absent from the basic device model:
-        10 MHz total frequency shift, one flux-unit period, a zero sweet spot,
-        quality factors of 10,000 and 12,000, and quadrature noise of 0.002.
+        The configured readout frequency is the default maximum resonance
+        frequency. Typical defaults are used for parameters absent from the
+        basic device model: 10 MHz total frequency shift, one flux-unit
+        period, a zero sweet spot, quality factors of 10,000 and 12,000, and
+        quadrature noise of 0.002.
         """
         if frequency_center is not None and frequency_center <= 0:
             raise ValueError("frequency_center must be positive.")
@@ -539,7 +444,7 @@ class ResonatorFluxSpectroscopy:
         random_generator = np.random.default_rng(seed)
         dataset = Dataset(
             attrs={
-                "name": "Simulated resonator flux spectroscopy",
+                "name": "Simulated resonator spectroscopy vs coupler flux",
                 "tuid": "simulated",
                 "simulated": True,
                 "simulation_models": (
@@ -626,7 +531,7 @@ class ResonatorFluxSpectroscopy:
                         (acquisition_dimension,),
                         frequency_coordinate,
                     ),
-                    f"flux_{qubit.name}": (
+                    f"flux_{self.coupler_name}": (
                         (acquisition_dimension,),
                         flux_coordinate,
                     ),
@@ -648,15 +553,15 @@ class ResonatorFluxSpectroscopy:
         self.results = {}
         return dataset
 
-    def analysis(self) -> dict[str, ResonatorFluxResult]:
+    def analysis(self) -> dict[str, ResonatorCouplerFluxResult]:
         """Average repetitions and run the scheduler's public flux analysis."""
         if self.dataset is None:
             raise RuntimeError("Call run_measurement() or simulated_data() first.")
 
-        results: dict[str, ResonatorFluxResult] = {}
+        flux_name = f"flux_{self.coupler_name}"
+        results: dict[str, ResonatorCouplerFluxResult] = {}
         for qubit in self.qubits:
             frequency_name = f"frequency_{qubit.name}"
-            flux_name = f"flux_{qubit.name}"
             signal_name = f"S21_{qubit.name}"
             missing = {
                 name
@@ -696,7 +601,7 @@ class ResonatorFluxSpectroscopy:
             np.add.at(counts, (flux_indices, frequency_indices), 1)
             if np.any(counts == 0):
                 raise RuntimeError(
-                    f"The flux spectroscopy grid is incomplete for {qubit.name}."
+                    f"The coupler flux spectroscopy grid is incomplete for {qubit.name}."
                 )
 
             transmission_grid = sums / counts
@@ -719,14 +624,14 @@ class ResonatorFluxSpectroscopy:
                 },
                 attrs={
                     **dict(self.dataset.attrs),
-                    "name": f"Resonator flux spectroscopy: {qubit.name}",
+                    "name": f"Resonator spectroscopy vs coupler flux: {qubit.name}",
                     "tuid": self.dataset.attrs.get("tuid", "simulated"),
                 },
             )
             analysis_dataset["y0"].attrs.update(name="Magnitude", units="V")
             analysis_dataset["y1"].attrs.update(name="Phase", units="deg")
             analysis_dataset["x0"].attrs.update(name="Frequency", units="Hz")
-            analysis_dataset["x1"].attrs.update(name="Flux offset", units="V")
+            analysis_dataset["x1"].attrs.update(name="Coupler flux offset", units="V")
 
             analysis_object = ResonatorFluxSpectroscopyAnalysis(
                 dataset=analysis_dataset,
@@ -735,15 +640,8 @@ class ResonatorFluxSpectroscopy:
             # Running these public stages directly keeps the adapted in-memory
             # dataset from being written a second time by BaseAnalysis.run().
             analysis_object.process_data()
-            # The scheduler's own run_fitting()/analyze_fit_results() extract a
-            # trace by keeping only 3-sigma outliers per flux column, which can
-            # leave too few points to resolve the oscillation on a shallow or
-            # noisy dip. Replace their quantities_of_interest with a fit over
-            # every arg-min point instead, so create_figures() and
-            # predict_readout_frequencies() both see the more robust curve.
-            analysis_object.quantities_of_interest = _fit_flux_curve(
-                unique_flux_offsets, resonance_frequencies
-            )
+            analysis_object.run_fitting()
+            analysis_object.analyze_fit_results()
 
             quantities = analysis_object.quantities_of_interest
             success = bool(quantities.get("fit_success", False))
@@ -769,7 +667,7 @@ class ResonatorFluxSpectroscopy:
                 if fitted_frequency != 0:
                     fitted_period = abs(1.0 / fitted_frequency)
 
-            results[qubit.name] = ResonatorFluxResult(
+            results[qubit.name] = ResonatorCouplerFluxResult(
                 flux_offsets=unique_flux_offsets,
                 frequencies=unique_frequencies,
                 transmission=transmission_grid,
@@ -784,50 +682,6 @@ class ResonatorFluxSpectroscopy:
 
         self.results = results
         return results
-
-    def predict_readout_frequencies(
-        self,
-        flux_biases: Mapping[str, float],
-    ) -> dict[str, float]:
-        """Evaluate the fitted flux-frequency curve (the analysis red line).
-
-        Uses the same sinusoidal fit quantities and phase convention as
-        ``ResonatorFluxSpectroscopyAnalysis.create_figures()`` so the returned
-        frequency lies exactly on the plotted red curve at each flux offset.
-        """
-        if not self.results:
-            raise RuntimeError("Call analysis() before predicting readout frequencies.")
-        unknown = set(flux_biases) - set(self.qubit_names)
-        if unknown:
-            raise ValueError(f"Unknown measured qubits: {sorted(unknown)}.")
-
-        predicted_frequencies: dict[str, float] = {}
-        for qubit_name, flux_value in flux_biases.items():
-            result = self.results[qubit_name]
-            if not result.success:
-                raise RuntimeError(f"Flux-frequency fit failed for {qubit_name!r}.")
-            quantities = result.analysis_object.quantities_of_interest
-            predicted_frequencies[qubit_name] = float(
-                cos_func(
-                    x=float(flux_value),
-                    frequency=quantities["frequency"].nominal_value,
-                    amplitude=quantities["amplitude"].nominal_value,
-                    offset=quantities["center"].nominal_value,
-                    phase=quantities["shift"].nominal_value - np.pi / 2,
-                )
-            )
-        return predicted_frequencies
-
-    def update_readout_frequencies(
-        self,
-        flux_biases: Mapping[str, float],
-    ) -> dict[str, float]:
-        """Set each qubit's ``clock_freqs.readout`` to its fitted value at the given flux."""
-        predicted_frequencies = self.predict_readout_frequencies(flux_biases)
-        qubits_by_name = {qubit.name: qubit for qubit in self.qubits}
-        for qubit_name, frequency in predicted_frequencies.items():
-            qubits_by_name[qubit_name].clock_freqs.readout = frequency
-        return predicted_frequencies
 
     def plot(self) -> None:
         """Create the scheduler's magnitude, phase, and sweet-spot figures."""

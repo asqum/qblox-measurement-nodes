@@ -12,7 +12,7 @@ from qblox_scheduler import HardwareAgent, Schedule
 from qblox_scheduler.analysis.fitting_models import cos_func
 from qblox_scheduler.analysis.single_qubit_timedomain import RabiAnalysis
 from qblox_scheduler.experiments import SetHardwareOption, SetParameter
-from qblox_scheduler.operations import ConditionalReset, IdlePulse, Measure, Reset, VoltageOffset
+from qblox_scheduler.operations import ConditionalReset, IdlePulse, Measure, Reset, VoltageOffset, X
 from qblox_scheduler.operations.expressions import DType, Expression
 from qblox_scheduler.operations.loop_domains import arange, linspace
 from xarray import Dataset
@@ -66,6 +66,7 @@ class Rabi:
         self.schedule: Schedule | None = None
         self.dataset: Dataset | None = None
         self.results: dict[str, RabiResult] = {}
+        self.figures: dict[str, Any] = {}
 
     @staticmethod
     def _drive_port_clock(qubit: Any) -> str:
@@ -170,25 +171,26 @@ class Rabi:
         reset_type: Literal["thermal", "active"] = "thermal",
     ) -> None:
         Rabi._add_reset(schedule, qubit.name, reset_type)
-        pulse_reference = schedule.add(
-            VoltageOffset(
-                offset_path_I=drive_amplitude,
-                offset_path_Q=0.0,
-                port=qubit.ports.microwave,
-                clock=f"{qubit.name}.01",
-            )
-        )
-        schedule.add(
-            VoltageOffset(
-                offset_path_I=0.0,
-                offset_path_Q=0.0,
-                port=qubit.ports.microwave,
-                clock=f"{qubit.name}.01",
-            ),
-            ref_op=pulse_reference,
-            ref_pt="start",
-            rel_time=drive_duration,
-        )
+        # pulse_reference = schedule.add(
+        #     VoltageOffset(
+        #         offset_path_I=drive_amplitude,
+        #         offset_path_Q=0.0,
+        #         port=qubit.ports.microwave,
+        #         clock=f"{qubit.name}.01",
+        #     )
+        # )
+        # schedule.add(
+        #     VoltageOffset(
+        #         offset_path_I=0.0,
+        #         offset_path_Q=0.0,
+        #         port=qubit.ports.microwave,
+        #         clock=f"{qubit.name}.01",
+        #     ),
+        #     ref_op=pulse_reference,
+        #     ref_pt="start",
+        #     rel_time=drive_duration,
+        # )
+        schedule.add(X(qubit=qubit.name, amp180=drive_amplitude, duration=drive_duration))
         schedule.add(
             Measure(
                 qubit.name,
@@ -754,6 +756,9 @@ class Rabi:
         """Create the scheduler's public Rabi fit figures for selected traces."""
         if not self.results:
             raise RuntimeError("Call analysis() before plotting.")
-        for result in self.results.values():
+        self.figures = {}
+        for qubit_name, result in self.results.items():
             result.analysis_object.create_figures()
+            for fig_name, fig in result.analysis_object.figs_mpl.items():
+                self.figures[f"{qubit_name}_{fig_name}"] = fig
         plt.show()

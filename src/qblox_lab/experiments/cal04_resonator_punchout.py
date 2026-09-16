@@ -23,6 +23,7 @@ class ResonatorPunchoutResult:
     """Processed complex punchout grid for one resonator."""
 
     amplitudes: np.ndarray
+    power_dbm: np.ndarray
     frequencies: np.ndarray
     transmission: np.ndarray
     resonance_frequencies: np.ndarray
@@ -53,6 +54,8 @@ class ResonatorPunchout:
         self.schedule: Schedule | None = None
         self.dataset: Dataset | None = None
         self.results: dict[str, ResonatorPunchoutResult] = {}
+        self.figures: dict[str, Any] = {}
+        self._max_power_dbm: float | None = None
 
     @staticmethod
     def _readout_port_clock(qubit: Any) -> str:
@@ -64,28 +67,34 @@ class ResonatorPunchout:
         frequency_center: float | None = None,
         frequency_width: float,
         frequency_points: int,
-        amplitude_start: float,
-        amplitude_stop: float,
-        amplitude_points: int,
+        min_power_dbm: float,
+        max_power_dbm: float,
+        power_points: int,
         repetitions: int,
         output_attenuation: int | None = None,
         input_attenuation: int | None = None,
         readout_lo_frequency: float | None = None,
     ) -> Schedule:
-        """Build the two-dimensional punchout schedule without executing hardware."""
+        """Build the two-dimensional punchout schedule without executing hardware.
+
+        The readout amplitude is swept as a relative power in dBm: ``max_power_dbm``
+        is the reference power at the maximum pulse amplitude (1.0), and
+        ``min_power_dbm`` sets the bottom of the sweep. The corresponding pulse
+        amplitudes are derived from the dB-to-voltage-ratio relation
+        ``amplitude = 10 ** ((power_dbm - max_power_dbm) / 20)`` and swept linearly
+        in amplitude on hardware (the real-time loop only supports linearly spaced
+        domains), so the resulting power points are not evenly spaced in dB.
+        """
         if frequency_center is not None and frequency_center <= 0:
             raise ValueError("frequency_center must be positive.")
         if frequency_width <= 0:
             raise ValueError("frequency_width must be positive.")
         if frequency_points < 2:
             raise ValueError("frequency_points must be at least 2.")
-        if not 0 <= amplitude_start < amplitude_stop <= 1:
-            raise ValueError(
-                "amplitude_start and amplitude_stop must satisfy "
-                "0 <= amplitude_start < amplitude_stop <= 1."
-            )
-        if amplitude_points < 2:
-            raise ValueError("amplitude_points must be at least 2.")
+        if min_power_dbm >= max_power_dbm:
+            raise ValueError("min_power_dbm must be less than max_power_dbm.")
+        if power_points < 2:
+            raise ValueError("power_points must be at least 2.")
         if repetitions < 1:
             raise ValueError("repetitions must be positive.")
         for name, attenuation in (
@@ -98,6 +107,11 @@ class ResonatorPunchout:
                 raise ValueError(f"{name} must be an even value from 0 through 30 dB.")
         if readout_lo_frequency is not None and readout_lo_frequency <= 0:
             raise ValueError("readout_lo_frequency must be positive.")
+
+        # amplitude = 1.0 at max_power_dbm; amplitude = 10**((min-max)/20) at min_power_dbm.
+        amplitude_start = 10 ** ((min_power_dbm - max_power_dbm) / 20)
+        amplitude_stop = 1.0
+        self._max_power_dbm = max_power_dbm
 
         schedule = Schedule("resonator_punchout")
         measurement_schedule = Schedule("resonator_punchout_measurement")
@@ -133,7 +147,7 @@ class ResonatorPunchout:
                     linspace(
                         amplitude_start,
                         amplitude_stop,
-                        amplitude_points,
+                        power_points,
                         DType.AMPLITUDE,
                     )
                 ) as amplitude:
@@ -179,9 +193,9 @@ class ResonatorPunchout:
         frequency_center: float | None = None,
         frequency_width: float,
         frequency_points: int,
-        amplitude_start: float,
-        amplitude_stop: float,
-        amplitude_points: int,
+        min_power_dbm: float,
+        max_power_dbm: float,
+        power_points: int,
         repetitions: int,
         output_attenuation: int | None = None,
         input_attenuation: int | None = None,
@@ -193,9 +207,9 @@ class ResonatorPunchout:
             frequency_center=frequency_center,
             frequency_width=frequency_width,
             frequency_points=frequency_points,
-            amplitude_start=amplitude_start,
-            amplitude_stop=amplitude_stop,
-            amplitude_points=amplitude_points,
+            min_power_dbm=min_power_dbm,
+            max_power_dbm=max_power_dbm,
+            power_points=power_points,
             repetitions=repetitions,
             output_attenuation=output_attenuation,
             input_attenuation=input_attenuation,
@@ -214,6 +228,8 @@ class ResonatorPunchout:
         """Average repetitions and locate the transmission minimum at each amplitude."""
         if self.dataset is None:
             raise RuntimeError("Call run_measurement() before analysis().")
+        if self._max_power_dbm is None:
+            raise RuntimeError("Call run_measurement() or build_schedule() before analysis().")
 
         results = {}
         for qubit in self.qubits:
@@ -248,8 +264,10 @@ class ResonatorPunchout:
 
             transmission_grid = sums / counts
             minimum_indices = np.argmin(np.abs(transmission_grid), axis=1)
+            power_dbm = self._max_power_dbm + 20 * np.log10(unique_amplitudes)
             results[qubit.name] = ResonatorPunchoutResult(
                 amplitudes=unique_amplitudes,
+                power_dbm=power_dbm,
                 frequencies=unique_frequencies,
                 transmission=transmission_grid,
                 resonance_frequencies=unique_frequencies[minimum_indices],
@@ -258,24 +276,34 @@ class ResonatorPunchout:
         self.results = results
         return results
 
-    def update_device(self, readout_amplitudes: Mapping[str, float]) -> None:
-        """Apply explicitly selected readout amplitudes to the in-memory device."""
+    def update_device(self, readout_power_dbm: Mapping[str, float]) -> None:
+        """Apply a chosen readout power (dBm) and its resonance frequency to the device.
+
+        For each named qubit, the requested power is snapped to the nearest
+        measured power point of the punchout sweep, and the pulse amplitude and
+        resonance frequency at that point (the same point traced by the red
+        "minimum |S21|" line in ``plot()``) are both applied together, so the
+        readout frequency stays correct for the chosen power.
+        """
         if not self.results:
             raise RuntimeError("Call analysis() before updating the device.")
-        unknown = set(readout_amplitudes) - set(self.qubit_names)
+        unknown = set(readout_power_dbm) - set(self.qubit_names)
         if unknown:
             raise ValueError(f"Unknown measured qubits: {sorted(unknown)}.")
-        if any(not 0 <= amplitude <= 1 for amplitude in readout_amplitudes.values()):
-            raise ValueError("Readout amplitudes must be between 0 and 1.")
         for qubit in self.qubits:
-            if qubit.name in readout_amplitudes:
-                qubit.measure.pulse_amp = readout_amplitudes[qubit.name]
+            if qubit.name not in readout_power_dbm:
+                continue
+            result = self.results[qubit.name]
+            index = int(np.argmin(np.abs(result.power_dbm - readout_power_dbm[qubit.name])))
+            qubit.measure.pulse_amp = float(result.amplitudes[index])
+            qubit.clock_freqs.readout = float(result.resonance_frequencies[index])
 
     def plot(self) -> None:
         """Plot normalized magnitude and centered phase punchout maps."""
         if not self.results:
             raise RuntimeError("Call analysis() before plotting.")
 
+        self.figures = {}
         for qubit in self.qubits:
             result = self.results[qubit.name]
             magnitude = np.abs(result.transmission)
@@ -297,14 +325,14 @@ class ResonatorPunchout:
             )
             magnitude_image = magnitude_axis.pcolormesh(
                 result.frequencies / 1e9,
-                result.amplitudes,
+                result.power_dbm,
                 normalized_magnitude,
                 shading="auto",
                 cmap="viridis",
             )
             magnitude_axis.plot(
                 result.resonance_frequencies / 1e9,
-                result.amplitudes,
+                result.power_dbm,
                 "r--",
                 label="minimum |S21|",
             )
@@ -314,13 +342,13 @@ class ResonatorPunchout:
             magnitude_axis.set(
                 title=f"Resonator punchout: {qubit.name}",
                 xlabel="Frequency (GHz)",
-                ylabel="Readout amplitude",
+                ylabel="Readout power (dBm)",
             )
             magnitude_axis.legend()
 
             phase_image = phase_axis.pcolormesh(
                 result.frequencies / 1e9,
-                result.amplitudes,
+                result.power_dbm,
                 centered_phase,
                 shading="auto",
                 cmap="RdBu_r",
@@ -335,5 +363,6 @@ class ResonatorPunchout:
                 xlabel="Frequency (GHz)",
             )
             figure.tight_layout()
+            self.figures[qubit.name] = figure
 
         plt.show()

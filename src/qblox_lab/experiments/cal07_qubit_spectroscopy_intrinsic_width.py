@@ -65,7 +65,7 @@ class QubitSpectroscopyIntrinsicWidth(BroadbandQubitSpectroscopy):
     def build_schedule(
         self,
         *,
-        frequency_center: float,
+        frequency_center: float | None = None,
         frequency_width: float,
         frequency_points: int,
         repetitions: int,
@@ -78,7 +78,12 @@ class QubitSpectroscopyIntrinsicWidth(BroadbandQubitSpectroscopy):
         readout_output_attenuation: int | None = None,
         readout_input_attenuation: int | None = None,
     ) -> Schedule:
-        """Build all power-dependent cal06 sweeps and the final LO restoration."""
+        """Build all power-dependent cal06 sweeps and the final LO restoration.
+
+        ``frequency_center`` defaults to each qubit's own configured ``f01``
+        when omitted, so multiple qubits are swept around their own centers
+        instead of sharing one value.
+        """
         amplitudes = self._validated_drive_amplitudes(drive_amplitudes)
         if repetitions < 1:
             raise ValueError("repetitions must be positive.")
@@ -96,12 +101,20 @@ class QubitSpectroscopyIntrinsicWidth(BroadbandQubitSpectroscopy):
             ):
                 raise ValueError(f"{name} must be an even value from 0 through 30 dB.")
 
-        branches = self.plan_branches(
-            frequency_center=frequency_center,
-            frequency_width=frequency_width,
-            frequency_points=frequency_points,
-            maximum_branch_width=maximum_branch_width,
-        )
+        qubit_branches = {
+            qubit.name: self.plan_branches(
+                frequency_center=(
+                    float(qubit.clock_freqs.f01)
+                    if frequency_center is None
+                    else frequency_center
+                ),
+                frequency_width=frequency_width,
+                frequency_points=frequency_points,
+                maximum_branch_width=maximum_branch_width,
+            )
+            for qubit in self.qubits
+        }
+        branch_count = len(next(iter(qubit_branches.values())))
         restored_los = self._configured_lo_frequencies(restore_drive_lo_frequency)
         schedule = Schedule("qubit_spectroscopy_intrinsic_width")
 
@@ -129,14 +142,15 @@ class QubitSpectroscopyIntrinsicWidth(BroadbandQubitSpectroscopy):
                     )
 
         for amplitude_index, drive_amplitude in enumerate(amplitudes):
-            for branch in branches:
+            for branch_index in range(branch_count):
                 measurement_schedule = Schedule(
                     "qubit_spectroscopy_intrinsic_width_"
-                    f"power_{amplitude_index + 1}_branch_{branch.index + 1}"
+                    f"power_{amplitude_index + 1}_branch_{branch_index + 1}"
                 )
                 parallel_reference = None
 
                 for qubit in self.qubits:
+                    branch = qubit_branches[qubit.name][branch_index]
                     drive_port_clock = self._drive_port_clock(qubit)
                     schedule.add(
                         SetHardwareOption(
@@ -202,7 +216,7 @@ class QubitSpectroscopyIntrinsicWidth(BroadbandQubitSpectroscopy):
         schedule.add(self._restoration_schedule(restored_los), rel_time=None)
 
         self.drive_amplitudes = amplitudes
-        self.branches = branches
+        self.branches = qubit_branches
         self._restore_lo_frequencies = restored_los
         self.schedule = schedule
         return schedule
@@ -210,7 +224,7 @@ class QubitSpectroscopyIntrinsicWidth(BroadbandQubitSpectroscopy):
     def run_measurement(
         self,
         *,
-        frequency_center: float,
+        frequency_center: float | None = None,
         frequency_width: float,
         frequency_points: int,
         repetitions: int,
@@ -224,7 +238,11 @@ class QubitSpectroscopyIntrinsicWidth(BroadbandQubitSpectroscopy):
         readout_input_attenuation: int | None = None,
         timeout: int = 300,
     ) -> Dataset:
-        """Acquire every drive amplitude and frequency branch in one run."""
+        """Acquire every drive amplitude and frequency branch in one run.
+
+        ``frequency_center`` defaults to each qubit's own configured ``f01``
+        when omitted (see ``build_schedule``).
+        """
         schedule = self.build_schedule(
             frequency_center=frequency_center,
             frequency_width=frequency_width,

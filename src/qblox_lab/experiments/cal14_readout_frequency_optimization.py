@@ -12,7 +12,7 @@ the |S21| minima of the two branches). No scheduler analysis class matches
 this figure of merit, so (as with cal01/cal02/cal04's argmin-based analyses)
 it is hand-rolled numpy, not an lmfit model.
 
-``reset_type``/``multiplexed`` follow the same convention as ``cal11_iq_blob.py``.
+``reset_type``/``multiplexed`` follow the same convention as ``cal13_iq_blob.py``.
 """
 
 from __future__ import annotations
@@ -75,6 +75,7 @@ class ReadoutFrequencyOptimization:
         self.schedule: Schedule | None = None
         self.dataset: Dataset | None = None
         self.results: dict[str, ReadoutFrequencyOptimizationResult] = {}
+        self.figures: dict[str, Any] = {}
 
     @staticmethod
     def _readout_port_clock(qubit: Any) -> str:
@@ -470,6 +471,7 @@ class ReadoutFrequencyOptimization:
         """Plot the blob-separation sweep and |S21| branches for each qubit."""
         if not self.results:
             raise RuntimeError("Call analysis() before plotting.")
+        self.figures = {}
         for qubit_name, result in self.results.items():
             detuning_mhz = (result.frequencies - result.configured_frequency) / 1e6
             optimal_detuning_mhz = result.detuning / 1e6
@@ -492,4 +494,5 @@ class ReadoutFrequencyOptimization:
             ax_magnitude.legend(fontsize="small")
 
             fig.tight_layout()
+            self.figures[qubit_name] = fig
         plt.show()

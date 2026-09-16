@@ -54,6 +54,7 @@ class TimeOfFlight:
         self.schedule: Schedule | None = None
         self.dataset: Dataset | None = None
         self.results: dict[str, TimeOfFlightResult] = {}
+        self.figures: dict[str, Any] = {}
         self._acquisition_delay: float | None = None
 
     @staticmethod
@@ -260,6 +261,9 @@ class TimeOfFlight:
         """Create the standard Qblox Scheduler time-of-flight figures."""
         if not self.results:
             raise RuntimeError("Call analysis() before plotting.")
-        for result in self.results.values():
+        self.figures = {}
+        for qubit_name, result in self.results.items():
             result.analysis_object.create_figures()
+            for fig_name, fig in result.analysis_object.figs_mpl.items():
+                self.figures[f"{qubit_name}_{fig_name}"] = fig
         plt.show()

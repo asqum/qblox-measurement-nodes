@@ -11,11 +11,11 @@ inlier-fraction figure of merit (mirrors QM's
 among those clearing ``inlier_threshold`` is selected. Unlike the reference
 (which re-derives rotation/threshold with its own closed-form formula), the
 final discrimination fit at the winning amplitude reuses
-``ReadoutCalibrationAnalysis`` — the same class ``cal11_iq_blob.py`` uses —
+``ReadoutCalibrationAnalysis`` — the same class ``cal13_iq_blob.py`` uses —
 for consistency across nodes. The reference's ``pandas``-based grouping is
 replaced with plain numpy, since pandas is not a dependency of this project.
 
-``reset_type``/``multiplexed`` follow the same convention as ``cal11_iq_blob.py``.
+``reset_type``/``multiplexed`` follow the same convention as ``cal13_iq_blob.py``.
 """
 
 from __future__ import annotations
@@ -81,6 +81,7 @@ class ReadoutPowerOptimization:
         self.schedule: Schedule | None = None
         self.dataset: Dataset | None = None
         self.results: dict[str, ReadoutPowerOptimizationResult] = {}
+        self.figures: dict[str, Any] = {}
 
     @staticmethod
     def _add_reset(
@@ -506,6 +507,7 @@ class ReadoutPowerOptimization:
         """Plot the fidelity/inlier-fraction sweep and the IQ blobs at the best amplitude."""
         if not self.results:
             raise RuntimeError("Call analysis() before plotting.")
+        self.figures = {}
         for qubit_name, result in self.results.items():
             fig, (ax_fidelity, ax_iq) = plt.subplots(1, 2, figsize=(10, 4))
 
@@ -540,4 +542,5 @@ class ReadoutPowerOptimization:
             ax_iq.set_aspect("equal", adjustable="datalim")
 
             fig.tight_layout()
+            self.figures[qubit_name] = fig
         plt.show()

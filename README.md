@@ -34,8 +34,12 @@ src/qblox_lab/
                                       BroadbandQubitSpectroscopy experiment
     cal07_qubit_spectroscopy_intrinsic_width.py
                                       QubitSpectroscopyIntrinsicWidth experiment
-    cal08_rabi.py                     Rabi experiment
-    cal09_energy_relaxation.py        EnergyRelaxation experiment
+    cal08_qubit_flux_spectroscopy.py  QubitFluxSpectroscopy experiment
+    cal09_rabi.py                     Rabi experiment
+    cal10_ramsey_vs_flux.py           RamseyVsFlux experiment
+    cal11_energy_relaxation.py        EnergyRelaxation experiment
+    ...
+    cal16_power_rabi_state.py         PowerRabiState experiment
 notebooks/
   run_time_of_flight.ipynb             Time-of-flight run parameters and execution
   run_broadband_resonator_spectroscopy.ipynb

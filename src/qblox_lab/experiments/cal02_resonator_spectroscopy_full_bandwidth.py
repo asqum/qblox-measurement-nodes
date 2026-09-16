@@ -70,11 +70,12 @@ class BroadbandResonatorSpectroscopy:
         self.flux_config = (
             None if flux_config is None else load_flux_config(flux_config)
         )
-        self.branches: tuple[SweepBranch, ...] = ()
+        self.branches: dict[str, tuple[SweepBranch, ...]] = {}
         self._restore_lo_frequencies: dict[str, float] = {}
         self.schedule: Schedule | None = None
         self.dataset: Dataset | None = None
         self.results: dict[str, BroadbandResonanceResult] = {}
+        self.figures: dict[str, Any] = {}
 
     @staticmethod
     def _readout_port_clock(qubit: Any) -> str:
@@ -183,7 +184,7 @@ class BroadbandResonatorSpectroscopy:
     def build_schedule(
         self,
         *,
-        frequency_center: float,
+        frequency_center: float | None = None,
         frequency_width: float,
         frequency_points: int,
         repetitions: int,
@@ -193,7 +194,12 @@ class BroadbandResonatorSpectroscopy:
         output_attenuation: int | None = None,
         input_attenuation: int | None = None,
     ) -> Schedule:
-        """Build one experiment containing every LO branch and the LO restoration."""
+        """Build one experiment containing every LO branch and the LO restoration.
+
+        ``frequency_center`` defaults to each qubit's own configured readout
+        frequency when omitted, so multiple qubits are swept around their own
+        centers instead of sharing one value.
+        """
         if repetitions < 1:
             raise ValueError("repetitions must be positive.")
         for name, attenuation in (
@@ -205,12 +211,20 @@ class BroadbandResonatorSpectroscopy:
             ):
                 raise ValueError(f"{name} must be an even value from 0 through 30 dB.")
 
-        branches = self.plan_branches(
-            frequency_center=frequency_center,
-            frequency_width=frequency_width,
-            frequency_points=frequency_points,
-            maximum_branch_width=maximum_branch_width,
-        )
+        qubit_branches = {
+            qubit.name: self.plan_branches(
+                frequency_center=(
+                    float(qubit.clock_freqs.readout)
+                    if frequency_center is None
+                    else frequency_center
+                ),
+                frequency_width=frequency_width,
+                frequency_points=frequency_points,
+                maximum_branch_width=maximum_branch_width,
+            )
+            for qubit in self.qubits
+        }
+        branch_count = len(next(iter(qubit_branches.values())))
         restored_los = self._configured_lo_frequencies(restore_lo_frequency)
         schedule = Schedule("broadband_resonator_spectroscopy")
 
@@ -236,13 +250,14 @@ class BroadbandResonatorSpectroscopy:
                     rel_time=None,
                 )
 
-        for branch in branches:
+        for branch_index in range(branch_count):
             measurement_schedule = Schedule(
-                f"broadband_resonator_spectroscopy_branch_{branch.index + 1}"
+                f"broadband_resonator_spectroscopy_branch_{branch_index + 1}"
             )
             parallel_reference = None
 
             for qubit in self.qubits:
+                branch = qubit_branches[qubit.name][branch_index]
                 port_clock = self._readout_port_clock(qubit)
                 schedule.add(
                     SetHardwareOption(
@@ -289,7 +304,7 @@ class BroadbandResonatorSpectroscopy:
         restoration = self._restoration_schedule(restored_los)
         schedule.add(restoration, rel_time=None)
 
-        self.branches = branches
+        self.branches = qubit_branches
         self._restore_lo_frequencies = restored_los
         self.schedule = schedule
         return schedule
@@ -297,7 +312,7 @@ class BroadbandResonatorSpectroscopy:
     def run_measurement(
         self,
         *,
-        frequency_center: float,
+        frequency_center: float | None = None,
         frequency_width: float,
         frequency_points: int,
         repetitions: int,
@@ -308,7 +323,11 @@ class BroadbandResonatorSpectroscopy:
         input_attenuation: int | None = None,
         timeout: int = 300,
     ) -> Dataset:
-        """Acquire every branch in one experiment and return one combined dataset."""
+        """Acquire every branch in one experiment and return one combined dataset.
+
+        ``frequency_center`` defaults to each qubit's own configured readout
+        frequency when omitted (see ``build_schedule``).
+        """
         schedule = self.build_schedule(
             frequency_center=frequency_center,
             frequency_width=frequency_width,
@@ -547,4 +566,5 @@ class BroadbandResonatorSpectroscopy:
         magnitude_axis.legend()
         phase_axis.legend()
         figure.tight_layout()
+        self.figures = {"broadband_resonator_spectroscopy": figure}
         plt.show()
