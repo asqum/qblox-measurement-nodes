@@ -8,6 +8,12 @@ version = "0.1.0"
 description = "Single-qubit calibration experiments built on Qblox Scheduler"
 readme = "README.md"
 requires-python = ">=3.10,<3.13"
+classifiers = [
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
 dependencies = [
     "matplotlib>=3.7",
     "numpy>=1.24",
@@ -15,6 +21,59 @@ dependencies = [
     "xarray>=2023.1",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pyright>=1.1.390",
+    "pytest>=8.3.4",
+    "pytest-cov>=6.0.0",
+    "ruff>=0.9.7",
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["qblox_lab*"]
+
+[tool.ruff]
+line-length = 100
+extend-exclude = [".venv"]
+respect-gitignore = true
+
+lint.select = [
+    "ANN", # flake8-annotations
+    "ARG", # flake8-unused-arguments
+    "D",   # pydocstyle
+    "E",   # pycodestyle
+    "ERA", # commented-out code
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # flake8-naming
+    "PLC",
+    "PLE",
+    "PLR",
+    "PLW",
+    "Q",   # flake8-quotes
+    "SIM", # flake8-simplify
+    "TCH", # flake8-type-checking
+    "TID", # flake8-tidy-imports
+    "UP",  # pyupgrade
+    "W",   # pycodestyle
+]
+lint.ignore = [
+    "ARG001",  # unused function argument
+    "D203",    # 1 blank line required before class docstring
+    "D212",    # multi-line docstring summary should start at the second line
+    "PLR0913", # too many arguments in function definition
+]
+
+lint.isort.known-first-party = ["qblox_scheduler", "qblox_lab"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.pyright]
+reportUnusedExpression = false
+
+[tool.pyproject-fmt]
+column_width = 120
+indent = 2
+keep_full_version = true
