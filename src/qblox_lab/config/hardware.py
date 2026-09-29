@@ -214,3 +214,26 @@ def create_hardware_agent(
         output_dir=output_dir,
         create_dummy_connections=create_dummy_connections,
     )
+
+
+def release_hardware(hardware_agent: HardwareAgent) -> None:
+    """Force-stop any armed sequencers left over from an aborted run.
+
+    ``HardwareAgent.run()`` has no error handling: if a run is interrupted
+    (timeout, exception, kernel interrupt) partway through, the instrument
+    coordinator and cluster sequencers can be left armed/running and holding
+    their connection, so the next run on the same clusters hangs until the
+    kernel is restarted. Call this from a ``finally`` block around
+    ``hardware_agent.run(...)``, or on its own to recover a stuck session
+    without restarting the kernel.
+
+    Only goes through ``instrument_coordinator.stop()`` -- it already calls
+    ``stop_sequencer()`` on every cluster (via each ``ClusterComponent``,
+    after properly disabling each module first). A second, raw
+    ``cluster.stop_sequencer()`` on top of that races the same connection and
+    can corrupt it (seen as e.g. ``ValueError: invalid literal for int() with
+    base 10: ''`` out of an unrelated later SCPI query), so don't add one.
+    """
+    instrument_coordinator = hardware_agent.instrument_coordinator
+    if instrument_coordinator.is_running:
+        instrument_coordinator.stop()

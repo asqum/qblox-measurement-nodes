@@ -49,7 +49,7 @@
             "q7:mw-q7.01": 0,
             "q8:mw-q8.01": 0,
             "q9:mw-q9.01": 0,
-            "q10:mw-q10.01": 20,
+            "q10:mw-q10.01": 16,
             "qw:mw-qw.01": 0,
 
             "q1:res-q1.ro": 26,
@@ -61,7 +61,7 @@
             "q7:res-q7.ro": 26,
             "q8:res-q8.ro": 26,
             "q9:res-q9.ro": 26,
-            "q10:res-q10.ro": 30,
+            "q10:res-q10.ro": 26,
             "qw:res-qw.ro": 26
         },
         "input_att": {
@@ -87,7 +87,7 @@
             "q7:mw-q7.01": { "lo_freq": 3.0e9 },
             "q8:mw-q8.01": { "lo_freq": 3.0e9 },
             "q9:mw-q9.01": { "lo_freq": 3.0e9 },
-            "q10:mw-q10.01": { "lo_freq": 3.3e9 },
+            "q10:mw-q10.01": { "lo_freq": 3.5e9 },
             "qw:mw-qw.01": { "lo_freq": 3.0e9 },
 
             "q1:res-q1.ro": { "lo_freq": 6e9 },

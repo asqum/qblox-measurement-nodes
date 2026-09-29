@@ -1,0 +1,39 @@
+set_mrk 2
+wait_sync 4
+upd_param 4
+move 0,R0
+wait 4
+move 0,R2
+move 1,R1
+loop5:
+reset_ph
+upd_param 4
+move 0,R4
+move 50,R3
+loop10:
+move 180000000,R6
+move 5,R5
+loop13:
+set_freq R6
+reset_ph
+set_awg_offs 2099,0
+upd_param 222
+acquire 0,R0,4
+add R0,1,R0
+wait 770
+set_awg_offs 0,0
+set_awg_gain 2099,0
+play 0,0,226
+set_freq 222263911
+upd_param 10000
+add R6,20000000,R6
+sub R5,1,R5
+jnz @loop13
+sub R0,5,R0
+add R4,1,R4
+sub R3,1,R3
+jnz @loop10
+sub R1,1,R1
+jnz @loop5
+add R0,5,R0
+stop

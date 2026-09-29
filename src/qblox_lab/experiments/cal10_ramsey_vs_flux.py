@@ -32,7 +32,7 @@ are offsets *relative to* whatever idle bias ``flux_config`` applies (not absolu
 voltages), and every other qubit listed in ``flux_config`` is parked at idle before
 the sweep. Multiple measured qubits are swept sequentially, not in parallel: the
 installed ``qblox_scheduler``'s ``ref_op`` alignment fails whenever either side is a
-baseband pulse on a flux-type port (``VoltageOffset``), so this avoids ``ref_op``
+baseband pulse on a flux-type port (``SquarePulse``), so this avoids ``ref_op``
 entirely, same as ``cal08_qubit_flux_spectroscopy.py``.
 
 The quadratic fit of the per-flux fitted Ramsey oscillation frequency resolves both
@@ -60,7 +60,7 @@ from qblox_scheduler.operations import (
     Reset,
     ResetClockPhase,
     ShiftClockPhase,
-    VoltageOffset,
+    SquarePulse,
     X90,
 )
 from qblox_scheduler.operations.expressions import DType
@@ -70,6 +70,7 @@ from xarray import Dataset
 from qblox_lab.config.hardware import (
     apply_flux_config,
     load_flux_config,
+    release_hardware,
     resolve_flux_offset_parameter,
     update_flux_config,
 )
@@ -323,19 +324,20 @@ class RamseyVsFlux:
                         schedule.add(ResetClockPhase(clock=drive_clock))
                         schedule.add(IdlePulse(4e-9))
                         schedule.add(X90(qubit.name))
-                        # Flux pulse: on right after the first X90, held for
-                        # exactly `delay` seconds (the Ramsey free-evolution
-                        # window), off again before the second X90.
+                        # Flux pulse: a flat-top SquarePulse whose duration
+                        # *is* the Ramsey free-evolution window itself (right
+                        # after the first X90, back to zero before the
+                        # second), settle buffers bracketing its edges.
+                        schedule.add(IdlePulse(pulse_settle_time))
                         schedule.add(
-                            VoltageOffset(flux_pulse_amplitude, 0, port=flux_port),
+                            SquarePulse(
+                                amplitude=flux_pulse_amplitude,
+                                duration=delay,
+                                port=flux_port,
+                            ),
                             rel_time=None,
                         )
                         schedule.add(IdlePulse(pulse_settle_time))
-                        schedule.add(IdlePulse(delay))
-                        schedule.add(IdlePulse(pulse_settle_time))
-                        schedule.add(
-                            VoltageOffset(0.0, 0, port=flux_port), rel_time=None
-                        )
                         # Virtual Z gate sized to the *full* elapsed gap between
                         # the two X90 pulses (settle buffers included), unlike
                         # the QM reference which uses `delay` alone.
@@ -433,7 +435,10 @@ class RamseyVsFlux:
             readout_output_attenuation=readout_output_attenuation,
             readout_input_attenuation=readout_input_attenuation,
         )
-        self.dataset = self.hardware_agent.run(schedule, timeout=timeout)
+        try:
+            self.dataset = self.hardware_agent.run(schedule, timeout=timeout)
+        finally:
+            release_hardware(self.hardware_agent)
         self.results = {}
         return self.dataset
 

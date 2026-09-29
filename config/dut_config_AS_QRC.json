@@ -6,7 +6,7 @@
       "element_type": "BasicTransmonElement",
       "reset": {
         "name": "reset",
-        "duration": 0.0001
+        "duration": 0.0002
       },
       "rxy": {
         "name": "rxy",
@@ -23,11 +23,11 @@
       "measure": {
         "name": "measure",
         "pulse_type": "SquarePulse",
-        "pulse_amp": 0.1,
+        "pulse_amp": 1.0,
         "pulse_duration": 1e-6,
         "acq_label": 0,
         "acq_channel": 0,
-        "acq_delay": 2.22e-7,
+        "acq_delay": 2.36e-7,
         "integration_time": 1e-6,
         "reset_clock_phase": true,
         "acq_weights_a": {
@@ -46,8 +46,8 @@
         },
         "acq_weights_sampling_rate": 1.0,
         "acq_weight_type": "SSB",
-        "acq_rotation": 333.8531894059252,
-        "acq_threshold": -0.0013838732382577444,
+        "acq_rotation": 56.764108158726174,
+        "acq_threshold": -0.0005669667095857015,
         "num_points": 1,
         "reference_magnitude": {
           "name": "reference_magnitude",
@@ -71,9 +71,9 @@
       },
       "clock_freqs": {
         "name": "clock_freqs",
-        "f01": 3545976194.2402368,
+        "f01": 3545968033.0839543,
         "f12": 3022761463.0,
-        "readout": 6054865977.700998
+        "readout": 6054047331.968925
       }
     },
     "q2": {
@@ -685,9 +685,9 @@
       },
       "rxy": {
         "name": "rxy",
-        "amp180": 0.3,
+        "amp180": 0.9527765434973015,
         "beta": 0.0,
-        "duration": 3.2e-8,
+        "duration": 3e-8,
         "reference_magnitude": {
           "name": "reference_magnitude",
           "dBm": NaN,
@@ -721,8 +721,8 @@
         },
         "acq_weights_sampling_rate": 1.0,
         "acq_weight_type": "SSB",
-        "acq_rotation": 0.0,
-        "acq_threshold": 0.0,
+        "acq_rotation": 355.9494622402541,
+        "acq_threshold": -0.0000752471671707046,
         "num_points": 1,
         "reference_magnitude": {
           "name": "reference_magnitude",
@@ -746,9 +746,9 @@
       },
       "clock_freqs": {
         "name": "clock_freqs",
-        "f01": 3549524961.0,
+        "f01": 3579785270.533986,
         "f12": 3349524961.0,
-        "readout": 6059591550.916035
+        "readout": 6059616843.342511
       }
     },
     "qw": {
@@ -1080,7 +1080,7 @@
         },
         "q10:mw-q10.01": {
           "interm_freq": null,
-          "lo_freq": 3300000000.0
+          "lo_freq": 3500000000.0
         },
         "qw:mw-qw.01": {
           "interm_freq": null,
@@ -1188,7 +1188,7 @@
         "q7:mw-q7.01": 0.0,
         "q8:mw-q8.01": 0.0,
         "q9:mw-q9.01": 0.0,
-        "q10:mw-q10.01": 20.0,
+        "q10:mw-q10.01": 16.0,
         "qw:mw-qw.01": 0.0,
         "q1:res-q1.ro": 26.0,
         "q2:res-q2.ro": 26.0,
@@ -1199,7 +1199,7 @@
         "q7:res-q7.ro": 26.0,
         "q8:res-q8.ro": 26.0,
         "q9:res-q9.ro": 26.0,
-        "q10:res-q10.ro": 30.0,
+        "q10:res-q10.ro": 26.0,
         "qw:res-qw.ro": 26.0
       },
       "input_att": {

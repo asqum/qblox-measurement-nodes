@@ -1,23 +1,39 @@
-"""Qubit spectroscopy versus flux using an in-schedule VoltageOffset flux pulse.
+"""Qubit spectroscopy versus flux using an in-schedule SquarePulse flux pulse.
 
 Pulsed-flux mode: each measured qubit's flux offset is pulsed *relative to its
 externally applied idle bias* (``resolve_flux_offset_parameter`` +
-``apply_flux_config``, same idle mechanism as every other node) and held, along
-with a continuous drive, across the whole frequency sweep at each flux point --
-mirrors ``docs/applications/superconducting/cal07b_CW_flux_qubit_spectroscopy.py``'s
+``apply_flux_config``, same idle mechanism as every other node), on top of a
+continuous drive -- mirrors
+``docs/applications/superconducting/cal07b_CW_flux_qubit_spectroscopy.py``'s
 proven ``MultiplexedCWFluxQubitSpectroscopy`` pattern, ported and validated via
 the Phase 0 ``dev_joint_flux_pulse_check.py`` (``JointFluxPulseDriveCheck``)
 prototype. Every other qubit listed in the flux config that is not being
 measured is ramped to its idle bias before the sweep starts and is never
 touched by the schedule.
 
-Multiple qubits are each swept as a full, independent flux x frequency block,
-chained strictly sequentially (qubit after qubit, no ``ref_op``/``ref_pt``
-alignment) rather than run in parallel: the installed ``qblox_scheduler``'s
-``ref_op`` alignment fails whenever either side of the relationship is a
-baseband pulse on a flux-type port (``VoltageOffset``/``SuddenNetZeroPulse``),
-so sequential timing sidesteps that bug entirely, at the cost of not
-parallelizing across qubits.
+Unlike the original CW-hold design, the flux is now re-pulsed *every
+frequency point*, not held once across the whole sweep: a
+:class:`~qblox_scheduler.operations.SquarePulse` (rather than a persistent
+``VoltageOffset``) plays for the drive/settle interaction window and then
+ends on its own, right before that point's ``Measure`` -- so acquisition
+always happens back at the idle bias, where readout is calibrated, instead of
+at the (potentially readout-degrading) flux-pulsed point. This also replaces
+the old ``Reset(qubit.name)`` call -- which was only ever used as a
+driven-steady-state timer, not an actual reset -- with the pulse's own
+``duration``, sized to ``qubit.reset.duration`` for the same wait length.
+
+A persistent, port-scoped ``VoltageOffset`` (like the drive here) has no
+schedule-time cost and stays physically asserted regardless of what's added
+after it; a ``SquarePulse`` is a real, finite-duration waveform block, so
+anything meant to happen *during* it can't be expressed as later sequential
+operations -- and can't be fixed with ``ref_op``/``ref_pt`` alignment either,
+because it fails whenever either side of the relationship is a baseband pulse
+on a flux-type port. That's why the drive is still asserted once per flux
+point with a plain ``VoltageOffset`` (unaffected by the flux SquarePulse that
+follows it on a different port) while the flux itself uses a self-terminating
+pulse. It's also why multiple qubits are still swept as full, independent
+flux x frequency blocks, chained strictly sequentially rather than run in
+parallel, at the cost of not parallelizing across qubits.
 """
 
 from __future__ import annotations
@@ -35,8 +51,8 @@ from qblox_scheduler.experiments import SetHardwareOption, SetParameter
 from qblox_scheduler.operations import (
     IdlePulse,
     Measure,
-    Reset,
     SetClockFrequency,
+    SquarePulse,
     VoltageOffset,
 )
 from qblox_scheduler.operations.expressions import DType
@@ -121,8 +137,8 @@ class QubitFluxSpectroscopy:
 
         Applies to *all* qubits listed in the flux config, not just the ones
         being measured: the swept qubits need their own idle bias in place
-        before the schedule's ``VoltageOffset`` pulses that flux relative to
-        it, and every unmeasured qubit must be parked and left untouched.
+        before the schedule's ``SquarePulse`` flux pulses relative to it, and
+        every unmeasured qubit must be parked and left untouched.
         """
         if self.flux_config is None:
             return
@@ -184,10 +200,14 @@ class QubitFluxSpectroscopy:
         ``flux_pulse_start``/``flux_pulse_stop`` are added to whatever idle
         bias is already applied externally (they are not absolute voltages);
         pick the same range you would trust for a ``SetParameter``-based
-        sweep of this qubit. For each flux point, the flux offset and the CW
-        drive are each applied once and held across every frequency point in
-        that slice -- matching cal07b -- rather than being re-pulsed and
-        returned to idle every shot.
+        sweep of this qubit. For each flux point, the CW drive is applied
+        once and held across every frequency point in that slice -- matching
+        cal07b. The flux itself, unlike cal07b, is re-pulsed *every*
+        frequency point: a ``SquarePulse`` holds it at the target offset for
+        ``qubit.reset.duration`` (the same driven-steady-state interaction
+        window the old ``Reset(qubit.name)`` timer used), then ends on its
+        own -- followed by ``pulse_settle_time`` -- so every ``Measure``
+        happens back at the idle bias instead of at the flux-pulsed point.
         """
         if frequency_center is not None and frequency_center <= 0:
             raise ValueError("frequency_center must be positive.")
@@ -272,15 +292,6 @@ class QubitFluxSpectroscopy:
                     ),
                     rel_time=None,
                 ) as flux_pulse_amplitude:
-                    # Pulse flux away from idle and hold it for the whole
-                    # frequency sweep at this flux point (cal07b's pattern),
-                    # instead of re-pulsing and returning to idle every shot.
-                    schedule.add(IdlePulse(4e-9))
-                    schedule.add(
-                        VoltageOffset(flux_pulse_amplitude, 0, port=flux_port),
-                        rel_time=None,
-                    )
-                    schedule.add(IdlePulse(pulse_settle_time))
                     with schedule.loop(
                         linspace(
                             center - frequency_width / 2,
@@ -289,18 +300,37 @@ class QubitFluxSpectroscopy:
                             DType.FREQUENCY,
                         )
                     ) as frequency:
+                        # Re-asserted every frequency point (not just once per
+                        # flux point): a VoltageOffset has no schedule-time
+                        # cost and stays physically asserted on the drive port
+                        # regardless of the flux SquarePulse blocks that
+                        # follow it (different port), but the drive
+                        # sequencer's per-iteration body needs real content
+                        # here so the compiler keeps a LoopStrategy for this
+                        # loop on that sequencer -- otherwise the absolute
+                        # frequency sweep never gets converted to an IF
+                        # relative to the drive LO and is compiled directly
+                        # into the NCO, which only accepts +/-500 MHz.
                         schedule.add(IdlePulse(4e-9))
-                        # Continuous drive, re-asserted (not re-pulsed) at
-                        # every frequency point so it stays on through Reset
-                        # and Measure -- cal07b uses Reset here as the wait
-                        # for the qubit to reach driven steady-state, not as
-                        # a return to idle.
                         schedule.add(
                             VoltageOffset(drive_amplitude, 0, port=drive_port, clock=clock),
                             rel_time=None,
                         )
                         schedule.add(SetClockFrequency(clock=clock, frequency=frequency))
-                        schedule.add(Reset(qubit.name))
+                        # Flux pulse: on top of the idle bias, held for the
+                        # driven-steady-state interaction window (same
+                        # duration the old Reset(qubit.name) timer used),
+                        # then ends on its own -- followed by a settle buffer
+                        # -- so Measure always happens back at the idle bias.
+                        schedule.add(
+                            SquarePulse(
+                                amplitude=flux_pulse_amplitude,
+                                duration=qubit.reset.duration,
+                                port=flux_port,
+                            ),
+                            rel_time=None,
+                        )
+                        schedule.add(IdlePulse(pulse_settle_time))
                         schedule.add(
                             Measure(
                                 qubit.name,
@@ -312,14 +342,12 @@ class QubitFluxSpectroscopy:
                             )
                         )
                         schedule.add(IdlePulse(4e-9))
-                    # Turn off the drive, then return the pulsed flux offset
-                    # to 0 V so the externally applied idle bias is back in
-                    # sole control before the next flux point/qubit.
+                    # Turn off the drive before the next flux point/qubit;
+                    # the flux pulse itself already self-terminates every
+                    # shot, so there is no persistent flux offset to undo.
                     schedule.add(
                         VoltageOffset(0.0, 0, port=drive_port, clock=clock), rel_time=None
                     )
-                    schedule.add(IdlePulse(4e-9))
-                    schedule.add(VoltageOffset(0.0, 0, port=flux_port), rel_time=None)
                     schedule.add(IdlePulse(idle_return_time))
 
         self.schedule = schedule

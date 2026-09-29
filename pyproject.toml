@@ -28,10 +28,19 @@ dev = [
     "pytest-cov>=6.0.0",
     "ruff>=0.9.7",
 ]
+qat = [
+    "quantum-agent-toolbox; python_version >= '3.11'",
+]
+
+[project.scripts]
+qat-hardware = "qblox_lab.qat_adapter.serve:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["qblox_lab*"]
+
+[tool.uv.sources]
+quantum-agent-toolbox = { path = "../Quantum-Agent-Toolbox", editable = true }
 
 [tool.ruff]
 line-length = 100

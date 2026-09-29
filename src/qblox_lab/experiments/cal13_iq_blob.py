@@ -29,7 +29,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from qblox_scheduler import HardwareAgent, Schedule
 from qblox_scheduler.analysis.readout_calibration_analysis import ReadoutCalibrationAnalysis
-from qblox_scheduler.operations import ConditionalReset, Measure, Reset, X
+from qblox_scheduler.operations import ConditionalReset, IdlePulse, Measure, Reset, X
 from qblox_scheduler.operations.expressions import DType
 from qblox_scheduler.operations.loop_domains import arange
 from xarray import Dataset
@@ -93,12 +93,25 @@ class IQBlob:
         qubit_name: str,
         reset_type: Literal["thermal", "active"],
         acq_channel: str | None = None,
+        active_reset_buffer: float = 0.0,
     ) -> None:
-        """Reset a qubit: fixed-duration thermal wait, or measurement-based active reset."""
+        """Reset a qubit: fixed-duration thermal wait, or measurement-based active reset.
+
+        ``active_reset_buffer`` inserts an idle wait (in seconds) after an
+        active reset, before the following pulse/measurement. ConditionalReset's
+        own readout pulse leaves residual photons in the readout resonator;
+        without a buffer they haven't fully decayed by the time the next
+        measurement runs, which smears the |0>/|1> IQ blobs together.
+        """
         if reset_type == "active":
             schedule.add(
-                ConditionalReset(qubit_name, acq_channel=acq_channel or f"cond_{qubit_name}")
+                ConditionalReset(
+                    qubit_name=qubit_name,
+                    acq_channel=acq_channel or f"cond_{qubit_name}"
+                )
             )
+            if active_reset_buffer > 0.0:
+                schedule.add(IdlePulse(active_reset_buffer))
         else:
             schedule.add(Reset(qubit_name))
 
@@ -108,6 +121,7 @@ class IQBlob:
         repetitions: int,
         reset_type: Literal["thermal", "active"] = "thermal",
         multiplexed: bool = False,
+        active_reset_buffer: float = 0.0,
     ) -> Schedule:
         """Build the |0>/|1> preparation-and-measurement schedule without executing hardware.
 
@@ -120,6 +134,9 @@ class IQBlob:
         on its own. This is forced to sequential regardless of ``multiplexed``
         when ``reset_type="active"``, because overlapping conditional playback
         across qubits is not supported within the trigger-delay window.
+
+        ``active_reset_buffer`` (seconds) only applies when ``reset_type="active"``;
+        see ``_add_reset`` for why it's needed.
         """
         if repetitions < 1:
             raise ValueError("repetitions must be positive.")
@@ -133,7 +150,10 @@ class IQBlob:
         for qubit in self.qubits:
             qubit_schedule = Schedule(f"iq_blob_{qubit.name}")
             with qubit_schedule.loop(arange(0, repetitions, 1, DType.NUMBER)) as rep:
-                self._add_reset(qubit_schedule, qubit.name, reset_type)
+                self._add_reset(
+                    qubit_schedule, qubit.name, reset_type
+                )
+
                 qubit_schedule.add(
                     Measure(
                         qubit.name,
@@ -142,7 +162,9 @@ class IQBlob:
                     )
                 )
 
-                self._add_reset(qubit_schedule, qubit.name, reset_type)
+                self._add_reset(
+                    qubit_schedule, qubit.name, reset_type
+                )
                 qubit_schedule.add(X(qubit.name))
                 qubit_schedule.add(
                     Measure(
@@ -177,11 +199,15 @@ class IQBlob:
         repetitions: int,
         reset_type: Literal["thermal", "active"] = "thermal",
         multiplexed: bool = False,
+        active_reset_buffer: float = 0.0,
         timeout: int = 300,
     ) -> Dataset:
         """Build and execute the IQ-blob schedule."""
         schedule = self.build_schedule(
-            repetitions=repetitions, reset_type=reset_type, multiplexed=multiplexed
+            repetitions=repetitions,
+            reset_type=reset_type,
+            multiplexed=multiplexed,
+            active_reset_buffer=active_reset_buffer,
         )
         if self.flux_config is not None:
             apply_flux_config(
@@ -324,7 +350,7 @@ class IQBlob:
                         quantities["acq_rotation_rad"],
                     )
                 )
-                acq_rotation_degrees = float(np.degrees(rotation_rad))
+                acq_rotation_degrees = float(np.degrees(rotation_rad)) % 360.0
                 acq_threshold = float(
                     getattr(
                         quantities["acq_threshold"],

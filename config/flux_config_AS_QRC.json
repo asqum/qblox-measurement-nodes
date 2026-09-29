@@ -2,7 +2,7 @@
   "schema_version": 1,
   "flux_biases": {
     "q1": {
-      "value": 0.183243989944458,
+      "value": 0.183396577835083,
       "unit": "V",
       "ramp_step": 0.0003,
       "inter_delay": 1e-07
@@ -56,7 +56,7 @@
       "inter_delay": 1e-07
     },
     "q10": {
-      "value": 0.386,
+      "value": -0.021206,
       "unit": "V",
       "ramp_step": 0.0003,
       "inter_delay": 1e-07
@@ -118,7 +118,7 @@
       "port": "cpl8_9:fl"
     },
     "cpl9_10": {
-      "value": 0.0,
+      "value": 0.2,
       "unit": "V",
       "ramp_step": 0.0003,
       "inter_delay": 1e-07,
