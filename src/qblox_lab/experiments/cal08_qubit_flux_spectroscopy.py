@@ -312,11 +312,11 @@ class QubitFluxSpectroscopy:
                         # relative to the drive LO and is compiled directly
                         # into the NCO, which only accepts +/-500 MHz.
                         schedule.add(IdlePulse(4e-9))
+                        schedule.add(SetClockFrequency(clock=clock, frequency=frequency))
                         schedule.add(
                             VoltageOffset(drive_amplitude, 0, port=drive_port, clock=clock),
                             rel_time=None,
                         )
-                        schedule.add(SetClockFrequency(clock=clock, frequency=frequency))
                         # Flux pulse: on top of the idle bias, held for the
                         # driven-steady-state interaction window (same
                         # duration the old Reset(qubit.name) timer used),
@@ -879,6 +879,24 @@ class QubitFluxSpectroscopy:
 
             figure, (heatmap_axis, line_axis) = plt.subplots(1, 2, figsize=(12, 5))
 
+            # Keep every marker/line inside the measured window: a sweet spot
+            # extrapolated far outside it must not stretch the axes.
+            flux_limits = (
+                float(result.flux_pulse_amplitudes.min()),
+                float(result.flux_pulse_amplitudes.max()),
+            )
+            frequency_limits = (
+                float(result.frequencies.min()) / 1e9,
+                float(result.frequencies.max()) / 1e9,
+            )
+            sweet_spot_in_range = (
+                result.success
+                and flux_limits[0] <= result.sweet_spot <= flux_limits[1]
+                and frequency_limits[0]
+                <= result.sweet_spot_frequency / 1e9
+                <= frequency_limits[1]
+            )
+
             max_value = np.max(np.abs(result.rotated_signal))
             image = heatmap_axis.pcolormesh(
                 result.flux_pulse_amplitudes,
@@ -920,7 +938,7 @@ class QubitFluxSpectroscopy:
                 markeredgecolor="0.5",
                 label="Excluded (weak signal)",
             )
-            if result.success:
+            if sweet_spot_in_range:
                 heatmap_axis.axhline(
                     result.sweet_spot_frequency / 1e9, color="k", linestyle="--", alpha=0.7
                 )
@@ -935,6 +953,8 @@ class QubitFluxSpectroscopy:
                 xlabel="Flux pulse amplitude (V, relative to idle)",
                 ylabel="Drive frequency (GHz)",
                 title=f"Rotated qubit flux spectroscopy: {qubit.name}",
+                xlim=flux_limits,
+                ylim=frequency_limits,
             )
             heatmap_axis.legend(loc="lower center")
 
@@ -960,15 +980,34 @@ class QubitFluxSpectroscopy:
                 )
                 fit_line = (curvature * fine_flux**2 + linear * fine_flux + constant) / 1e9
                 line_axis.plot(fine_flux, fit_line, "r-", lw=2, label="Parabola fit")
-                line_axis.axhline(result.sweet_spot_frequency / 1e9, color="C4", linestyle="--")
-                line_axis.axvline(result.sweet_spot, color="C4", linestyle="--")
-                line_axis.plot(
-                    result.sweet_spot, result.sweet_spot_frequency / 1e9, "r*", markersize=12
-                )
+                if sweet_spot_in_range:
+                    line_axis.axhline(
+                        result.sweet_spot_frequency / 1e9, color="C4", linestyle="--"
+                    )
+                    line_axis.axvline(result.sweet_spot, color="C4", linestyle="--")
+                    line_axis.plot(
+                        result.sweet_spot,
+                        result.sweet_spot_frequency / 1e9,
+                        "r*",
+                        markersize=12,
+                    )
+                else:
+                    line_axis.text(
+                        0.02,
+                        0.97,
+                        f"Fitted sweet spot {result.sweet_spot:.3f} V, "
+                        f"{result.sweet_spot_frequency / 1e9:.3f} GHz\n"
+                        "(outside the measured window)",
+                        transform=line_axis.transAxes,
+                        va="top",
+                        fontsize=9,
+                    )
             line_axis.set(
                 xlabel="Flux pulse amplitude (V, relative to idle)",
                 ylabel="Extracted drive frequency (GHz)",
                 title="Inverted parabola fit",
+                xlim=flux_limits,
+                ylim=frequency_limits,
             )
             line_axis.grid(True, linestyle="--", alpha=0.5)
             line_axis.legend(loc="lower center")
