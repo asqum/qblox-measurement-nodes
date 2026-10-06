@@ -61,6 +61,8 @@ that normally change between measurements are defined in the notebook.
 
 ## Installation
 
+On Linux ARM64 without sudo, follow [docs/install_linux_arm64.md](docs/install_linux_arm64.md).
+
 Activate the environment containing Qblox Scheduler, then install this repository:
 
 ```powershell
