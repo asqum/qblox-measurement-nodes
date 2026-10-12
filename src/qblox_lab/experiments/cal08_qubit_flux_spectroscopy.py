@@ -51,6 +51,7 @@ from qblox_scheduler.experiments import SetHardwareOption, SetParameter
 from qblox_scheduler.operations import (
     IdlePulse,
     Measure,
+    Reset,
     SetClockFrequency,
     SquarePulse,
     VoltageOffset,
@@ -184,6 +185,7 @@ class QubitFluxSpectroscopy:
         frequency_points: int,
         repetitions: int,
         drive_amplitude: float,
+        drive_duration: float,
         flux_pulse_start: float,
         flux_pulse_stop: float,
         flux_pulse_points: int,
@@ -312,25 +314,30 @@ class QubitFluxSpectroscopy:
                         # relative to the drive LO and is compiled directly
                         # into the NCO, which only accepts +/-500 MHz.
                         schedule.add(IdlePulse(4e-9))
-                        schedule.add(
-                            VoltageOffset(drive_amplitude, 0, port=drive_port, clock=clock),
-                            rel_time=None,
-                        )
+                        schedule.add(Reset(qubit.name))
                         schedule.add(SetClockFrequency(clock=clock, frequency=frequency))
                         # Flux pulse: on top of the idle bias, held for the
                         # driven-steady-state interaction window (same
                         # duration the old Reset(qubit.name) timer used),
                         # then ends on its own -- followed by a settle buffer
                         # -- so Measure always happens back at the idle bias.
-                        schedule.add(
+                        flux_square = schedule.add(
                             SquarePulse(
                                 amplitude=flux_pulse_amplitude,
-                                duration=qubit.reset.duration,
-                                port=flux_port,
-                            ),
-                            rel_time=None,
+                                duration=drive_duration,
+                                port=qubit.ports.flux,
+                            )
                         )
-                        schedule.add(IdlePulse(pulse_settle_time))
+                        schedule.add(
+                            SquarePulse(
+                                amplitude=drive_amplitude,
+                                duration=drive_duration,
+                                port=qubit.ports.microwave,
+                                clock=f"{qubit.name}.01",
+                            ),
+                            ref_op = flux_square,
+                            ref_pt = "start"
+                        )
                         schedule.add(
                             Measure(
                                 qubit.name,
@@ -345,9 +352,6 @@ class QubitFluxSpectroscopy:
                     # Turn off the drive before the next flux point/qubit;
                     # the flux pulse itself already self-terminates every
                     # shot, so there is no persistent flux offset to undo.
-                    schedule.add(
-                        VoltageOffset(0.0, 0, port=drive_port, clock=clock), rel_time=None
-                    )
                     schedule.add(IdlePulse(idle_return_time))
 
         self.schedule = schedule
@@ -357,7 +361,7 @@ class QubitFluxSpectroscopy:
         """Read the live idle DC biases through their public QCoDeS parameters."""
         flux_parameters = self._prepare_flux_parameters()
         return {
-            qubit_name: float(flux_parameters[qubit_name].get())
+            qubit_name: round(float(flux_parameters[qubit_name].get()),6)
             for qubit_name in self.qubit_names
         }
 
@@ -372,9 +376,10 @@ class QubitFluxSpectroscopy:
             raise ValueError(f"Unknown measured qubits: {sorted(unknown)}.")
         for qubit_name, value in flux_biases.items():
             numeric_value = float(value)
+            origin_value = float(flux_parameters[qubit_name].get())
             if not np.isfinite(numeric_value):
                 raise ValueError(f"Flux bias for {qubit_name!r} must be finite.")
-            flux_parameters[qubit_name].set(numeric_value)
+            flux_parameters[qubit_name].set(origin_value + numeric_value)
         return self.read_flux_biases()
 
     def save_flux_biases(
@@ -394,6 +399,7 @@ class QubitFluxSpectroscopy:
         frequency_points: int,
         repetitions: int,
         drive_amplitude: float,
+        drive_duration: float,
         flux_pulse_start: float,
         flux_pulse_stop: float,
         flux_pulse_points: int,
@@ -414,6 +420,7 @@ class QubitFluxSpectroscopy:
             frequency_points=frequency_points,
             repetitions=repetitions,
             drive_amplitude=drive_amplitude,
+            drive_duration=drive_duration,
             flux_pulse_start=flux_pulse_start,
             flux_pulse_stop=flux_pulse_stop,
             flux_pulse_points=flux_pulse_points,
