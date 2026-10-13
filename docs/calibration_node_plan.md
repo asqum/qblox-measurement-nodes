@@ -1,12 +1,12 @@
 # Calibration Node 建置企劃書
 
-最後更新:2026-09-15。這份文件是「持續更新」的活文件——每次新增/修改 node,請同步更新下面的狀態表與缺口清單,不要另開一份新文件。
+最後更新:2026-10-13(對照 commit `54bbf81`)。這份文件是「持續更新」的活文件——每次新增/修改 node,請同步更新下面的狀態表與缺口清單,不要另開一份新文件。
 
 ## 1. 目的
 
 對齊使用者在 Notion 上規劃的完整 calibration node 清單,與目前 `src/qblox_lab/experiments/` 的實際建置進度,並把「independent / joint flux」這個目前還沒有任何 node 真正做出來的維度講清楚——這是 Notion 上幾乎每一列都打了 tag、但程式碼裡完全沒有對應開關的最大缺口。之後每次要建新 node,先回來看這份文件的「狀態表」跟「缺口清單」,再決定要接著做哪一個。
 
-## 2. 現況總覽(以程式碼實際狀態為準,2026-08-28 確認)
+## 2. 現況總覽(以程式碼實際狀態為準,2026-10-13 確認)
 
 ```
 src/qblox_lab/experiments/
@@ -15,27 +15,73 @@ src/qblox_lab/experiments/
   cal03_resonator_spectroscopy.py
   cal04_resonator_punchout.py
   cal05_resonator_flux_spectroscopy.py
+  cal05b_resonator_coupler_flux_spectroscopy.py (2026-09-01 新增,見 §4.3)
   cal06_qubit_spectroscopy_full_bandwidth.py
+  (cal06b_qubit_spectroscopy_fixed_lo.py 已於 2026-09-29 刪除)
   cal07_qubit_spectroscopy_intrinsic_width.py
-  cal08_qubit_flux_spectroscopy.py (2026-09-15 起改用 VoltageOffset flux pulse,見下方異動說明)
+  cal08_qubit_flux_spectroscopy.py (2026-09-29 起 flux 改用 SquarePulse,見 §2.1)
   cal09_rabi.py                (mode="power"/"time" 二選一,同一份檔案)
-  cal10_ramsey_vs_flux.py      (新增,2026-09-15,見下方新增說明)
+  cal10_ramsey_vs_flux.py      (2026-09-15 新增;2026-09-29 flux 改用 SquarePulse)
   cal11_energy_relaxation.py   (T1Analysis)
   cal12_ramsey.py
-  cal13_iq_blob.py
+  cal12b_spin_echo.py          (2026-10-12 新增,T2 echo,見 §2.1)
+  cal13_iq_blob.py             (2026-09-29 新增 active_reset_buffer,見 §2.1)
   cal14_readout_frequency_optimization.py
   cal15_readout_power_optimization.py
-  cal16_power_rabi_state.py    (新增,2026-09-15,見下方新增說明)
+  cal16_power_rabi_state.py    (2026-09-15 新增)
+  cal17_drag_pulse_calibration.py (2026-10-01 新增,外部提供程式碼,見 §2.1)
+  cal18a_RB.py                 (2026-10-01 新增,外部提供程式碼,見 §2.1)
+  cal18b_RB_batched.py         (2026-10-01 新增,外部提供程式碼,見 §2.1)
+  dependencies/randomized_benchmarking/   (cal18a/b 用的 Clifford 產生器,共用模組)
+  single_qubit_experiment_helpers/experiment.py (cal17/18 的 base class,共用模組)
   dev_active_reset.py          (Phase 0 驗證用,未進 calNN 序列)
+  dev_active_reset_diagnostic.py (2026-09-29 新增,未進 calNN 序列,見 §2.1)
   dev_joint_flux_pulse_check.py(Phase 0 驗證用,未進 calNN 序列)
   dev_snz_flux_pulse_check.py  (Phase 0 驗證用,未進 calNN 序列,2026-08-28 新增,見下方說明)
+
+src/qblox_lab/qat_adapter/     (2026-09-29 新增,QAT backend 橋接,見 §2.1)
+q1asm/                         (2026-09-29 新增,T1 fast tracking 手寫 Q1ASM,見 §2.1)
 ```
 
-**下一個空號:`cal17`。** 指派新編號前務必先 `ls src/qblox_lab/experiments/` 再確認一次,不要照這份文件的數字直接套(之前發生過中途插入 node 而全部往後移一位的狀況,這次(2026-09-15)又發生了一次)。
+Notebook 位置也有變:`dev_*` 與測試用 notebook 已搬到 `notebooks/test/`(2026-09-29),`run05b_resonator_coupler_flux_spectroscopy.ipynb` 搬到 `notebooks/coupler_related/`(2026-10-13)。
+
+**下一個空號:`cal19`。** 指派新編號前務必先 `ls src/qblox_lab/experiments/` 再確認一次,不要照這份文件的數字直接套(之前發生過中途插入 node 而全部往後移一位的狀況,2026-09-15 又發生了一次)。
+
+### 2.1 2026-09-16 至 2026-10-13 異動(本次更新補上)
+
+**`cal08_qubit_flux_spectroscopy.py`:flux 再次換機制,從 `VoltageOffset` 改成每個頻率點各自重打的 `SquarePulse`(2026-09-29,2026-10-12 再改)。** 原本「flux 跟 CW drive 在整個頻率掃描期間保持開啟」的做法改掉了:現在每個頻率點都播一次有限長度的 flux `SquarePulse`(新參數 `drive_duration`),脈衝自己結束後才 `Measure`,所以讀出永遠發生在 idle bias,不會在 flux 偏移點讀。`write_flux_biases()` 的語意也變了:傳入值現在是**加在目前 bias 上的偏移量**(`origin_value + numeric_value`),不再是絕對電壓,`read_flux_biases()` 回傳值四捨五入到 1e-6 V。需要注意的三件事:
+
+1. **程式碼用了 `ref_op`,跟 §3.2 記錄的 compiler bug 相衝突。** drive `SquarePulse` 用 `ref_op=flux_square, ref_pt="start"` 對齊 flux `SquarePulse`,但 §3.2 記錄的是「只要 `ref_op` 任一方是 flux port 的 baseband pulse 就會壞」(當時測的是 `VoltageOffset`/`SuddenNetZeroPulse`)。如果這版真的能編譯並在硬體上跑,代表該 bug 可能不適用於 `SquarePulse`,這會直接影響缺口 1 的做法(見 §3.3)。**尚未確認這版是否編譯通過或在硬體上跑過**。
+2. **Docstring 跟程式碼不一致。** 模組 docstring 說 drive 仍用 `VoltageOffset`、`Reset(qubit.name)` 已被移除、且不能用 `ref_op`;實際程式碼裡 drive 是 `SquarePulse`、`Reset(qubit.name)` 還在(第 317 行)、而且用了 `ref_op`。
+3. 2026-09-15 記錄的「新機制尚無真實硬體驗證」狀態,目前沒有新紀錄可以更新,視為仍未驗證。
+
+**`cal10_ramsey_vs_flux.py`:同步把 flux 從 `VoltageOffset` 開/關換成 `SquarePulse(duration=delay)`(2026-09-29)**,settle buffer 改成夾在脈衝兩側,virtual Z 相位計算不變。`run()` 也包了 `try/finally: release_hardware(...)`,是目前唯一用到 `release_hardware` 的 node。
+
+**`config/hardware.py` 新增 `release_hardware(hardware_agent)`(2026-09-29)**:`HardwareAgent.run()` 被中斷時 sequencer 會停在 armed 狀態導致下次執行卡住,這個函式透過 `instrument_coordinator.stop()` 解除。Docstring 特別提醒不要再額外呼叫 `cluster.stop_sequencer()`,會搶同一條連線而弄壞後續 SCPI 查詢。其他 node 尚未接上。
+
+**`cal13_iq_blob.py`:新增 `active_reset_buffer` 參數(2026-09-29)**,用意是在 `ConditionalReset` 之後插一段 idle,讓讀出共振腔的殘留光子衰減。**已知 bug:這個參數有出現在 `build_schedule()`/`run()` 的簽名裡,但 `build_schedule()` 呼叫 `_add_reset()` 時沒有把它傳下去,所以目前完全沒有作用。** 另外 `acq_rotation` 現在會 `% 360` 正規化到 [0, 360)。
+
+**`dev_active_reset_diagnostic.py`(2026-09-29 新增)**:起因是 `cal13` 用 active reset 時需要約 50 µs 的 buffer 才能跟 thermal reset 一樣好,這個時間尺度接近 T1 而不是光子衰減時間(約 1 µs),懷疑 `ConditionalReset` 的修正 X 根本沒觸發,看到的「恢復」只是 T1 自然衰減。用四個分支(raw_0 / raw_1 / reset_immediate / reset_buffered)判斷。**診斷結果目前沒有記錄在 repo 裡**;在有結論之前,所有提供 `reset_type="active"` 的 node(cal09–cal16,含 cal12b)的 active reset 結果都應該打問號。
+
+**`cal12b_spin_echo.py` + `run12b_spin_echo.ipynb`(2026-10-12 新增)**:T2 echo,用 `EchoAnalysis`,沿用 repo 慣例(`apply_flux_config` + independent flux,支援 thermal/active reset)。小問題:模組 docstring 是從 cal11 複製來沒改,仍寫「Qubit energy-relaxation calibration」。
+
+**`cal17_drag_pulse_calibration.py`、`cal18a_RB.py`、`cal18b_RB_batched.py`(2026-10-01 新增,外部提供的程式碼)。** Commit 訊息明講「as done in the original code provided, it will need restructuring」,而且 batching(segment mode)會在下一個 qblox-scheduler 版本內建,屆時 cal18b 的做法要改。這三份**不符合 repo 的慣例**:不是 `HardwareAgent` + `build_schedule()/simulated_data()/analysis()` 的 node 介面,而是繼承 `single_qubit_experiment_helpers` 的 `SingleQubitExperiment`;flux 用 schedule 內 `VoltageOffset` 推到 sweet spot(不是 `apply_flux_config`);而且打破 §7 的「不建共用 module」慣例。**以目前 repo 狀態,這三份都無法 import**:
+- 三份都用 `from single_qubit_experiment_helpers...`/`from dependencies...` 這種頂層 import,只有在 `experiments/` 目錄本身被加進 `sys.path` 時才找得到,不是 `qblox_lab.experiments.*` 套件路徑。
+- `cal17` 匯入 `from custom_elements import FluxTunableTransmonElement`,repo 裡沒有 `custom_elements` 模組。
+- `cal18b` 匯入 `from cal24_randomized_benchmarking import MultiplexedSingleQubitRB`,repo 裡沒有這個檔案(應該就是改名後的 `cal18a_RB.py`)。
+- `cal18a` 在 import 時直接改寫全域常數 `constants.GRID_TIME_TOLERANCE_TIME = 0.01`,會影響同一個 kernel 裡之後所有 node 的編譯。
+
+**`qat_adapter/`(2026-09-29 新增)**:把這個 repo 的硬體 node 註冊成 Quantum-Agent-Toolbox 的 `"qblox-hardware"` backend,`pyproject.toml` 新增 `qat` optional dependency 與 `qat-hardware` 指令,附 `tests/qat_adapter/` 單元測試。跟 calibration node 序列本身無關,記在這裡只是讓之後改 node 介面時知道有這個下游使用者。
+
+**`q1asm/`(2026-09-29 新增)**:T1 fast tracking(含 `bayesian_tau.py`),直接用 `qblox_instruments` 上傳手寫 Q1ASM,完全繞過 `qblox_scheduler`。檔案自述**尚未在真實硬體或可用的 assembler 上驗證過**(開發機是 aarch64,跑不了 assembler)。這可能就是 §4.1「T1 Statistic」的方向,但尚未確認。根目錄的 `tmp.q1asm` 看起來是暫存檔。
+
+**設定檔(2026-09-29)**:`flux_config_AS_QRC.json` 有實際校準值更新(q1 0.183397 V、q10 從 0.386 改成 -0.021206 V、`cpl9_10` 從 0 改成 0.2 V),`hw_config_AS_QRC.json` 有 q10 等通道的小改。`cpl9_10` 被設成非零值,代表 coupler 的 DC ramp 可能已經在硬體上用過了,但沒有紀錄能確認,見 §3.3 缺口 2。
 
 **修正(2026-08-28):`cal08_qubit_flux_spectroscopy.py` 的缺口 2 依賴是誤判。** §3.3 缺口清單原本把「Qubit flux spectroscopy」列為需要先完成缺口 1、2(coupler flux config 路徑驗證)才能動工,但實際確認後這個 node 只需要被測 qubit自己的 flux line——機制完全比照 `cal05_resonator_flux_spectroscopy.py` 的 independent DC-ramp(`resolve_flux_offset_parameter` + `SetParameter`),不會解析、也不會碰到任何 coupler port。已跟使用者確認範圍:被測 qubit 掃自己的 flux,其餘 qubit(來自 `flux_config` 的所有項目,扣掉被測的)在量測前用 `apply_flux_config(hardware_agent, flux_config, qubits=<非被測清單>)` 統一 park 到 idle,量測過程中不會再被排程碰到。`qblox_scheduler.analysis.spectroscopy_analysis.QubitFluxSpectroscopyAnalysis` 是現成的分析類別(quadratic 模型抓 sweetspot / sweetspot_freq),跟 cal05 用的 `ResonatorFluxSpectroscopyAnalysis` 同一套 dataset 慣例(x0=Frequency, x1=Offset, y0=Magnitude, y1=Phase)。已用 `config/example/` 的 dummy hardware 跑過 `build_schedule()` → `simulated_data()` → `analysis()` → `plot()` 全流程驗證通過。**joint 模式仍然缺,`flux_mode` 參數也還沒加**——之後要幫這個 node 補 joint(例如同時掃 qubit + coupler)時,缺口 1、2 才是真正的前提,現在的 independent-only 版本不受影響。
 
 **編號調整(2026-08-28,同日稍後):`Qubit flux spectroscopy` 從 `cal14` 改編為 `cal08`,原本的 `cal08`–`cal13` 依序往後推一位變成 `cal09`–`cal14`。** 使用者要求把它排在 `cal07`(qubit spectroscopy)後面、`cal08 Rabi` 前面,理由是它在量測順序上更接近既有的 resonator/qubit spectroscopy 系列,不是跟 readout optimization 系列排在一起。對應調整:`cal08_rabi.py`→`cal09_rabi.py`、`cal09_energy_relaxation.py`→`cal10_energy_relaxation.py`、`cal10_ramsey.py`→`cal11_ramsey.py`、`cal11_iq_blob.py`→`cal12_iq_blob.py`、`cal12_readout_frequency_optimization.py`→`cal13_readout_frequency_optimization.py`、`cal13_readout_power_optimization.py`→`cal14_readout_power_optimization.py`;對應的 `runNN_*.ipynb` 也全部同步改名跟改 import。改名時發現 `run14_qubit_flux_spectroscopy.ipynb` 曾被使用者在真實硬體(`ic_cluster_A_module19`)上實際執行過一次(q2 flux 掃描結果:sweet_spot=-0.193250 V,sweet_spot_frequency=3.321936014 GHz)——那份帶執行結果的版本已保留並改名為 `run08_qubit_flux_spectroscopy.ipynb`(只改了 import 那一行的模組名稱,輸出/結果原封不動),沒有被我先前建立的空白版本蓋掉。**下一個空號目前是 `cal15`(前面章節已同步更新),不再是 `cal14`。**
+
+(以下 2026-09-15 的段落保留作為歷史紀錄;cal08 的 flux 機制之後又改成 `SquarePulse`,現況以 §2.1 為準。)
 
 **重大異動(2026-09-15):`cal08_qubit_flux_spectroscopy.py` 的 flux 機制從 §3.1 的 independent `SetParameter` DC-ramp,整個換成 §3.2 的 `VoltageOffset` in-schedule flux pulse(使用者明確指示直接取代,而非新開一份 node)。**新機制內容:每個被測 qubit 各自把 flux 脈衝到「相對於外部 `apply_flux_config` 設定之 idle bias 的偏移量」(`flux_pulse_start`/`flux_pulse_stop`,不再是絕對電壓),並保持脈衝與 CW drive 橫跨整個頻率掃描(仿 `cal07b_CW_flux_qubit_spectroscopy.py` 的模式),讀出後歸零回 idle——機制直接從 `dev_joint_flux_pulse_check.py` 的 `JointFluxPulseDriveCheck`(Phase 0 原型)搬過來,分析管線也一併換成該原型的 PCA 旋轉 + Lorentzian 擬合 + branch-tracking + sigma-clipping(取代原本內建的 `QubitFluxSpectroscopyAnalysis`,因為在這個訊噪比下太脆弱)。多 qubit 支援維持,但實作方式改成每顆 qubit 各自的 flux×frequency 區塊在同一個 repetitions 迴圈內**依序**串接(不用 `ref_op`,理由同 §3.2 的 compiler bug),不是同時觸發——**因此嚴格來說這仍然是「一次一條 flux 線」的 independent 效果,只是底層换成 pulse 機制,並不構成 §3.2/§3.3 定義的真 joint(多元件同時觸發)**,狀態表(§4.3)的 joint 欄位不因此改成 ✅。
 
@@ -63,7 +109,7 @@ src/qblox_lab/experiments/
 
 機制:`apply_flux_config()`([`config/hardware.py:132`](../src/qblox_lab/config/hardware.py))呼叫 `resolve_flux_offset_parameter()`([`config/hardware.py:88`](../src/qblox_lab/config/hardware.py)),透過 QCoDeS 的 `outN_offset` DC 參數,在 shot 之間用 ramp 的方式,把**呼叫時明確列出的 qubit(s)**各自打到 `flux_config_AS_QRC.json` 裡各自預先配好的 idle 值。
 
-現況:`cal01`–`cal07`、`cal09`–`cal14` 都是這個模式——每個 node 只會動到建構時傳入的 `qubit_names`,其餘 qubit / coupler 完全不會被這次實驗碰到,會維持前一次殘留的偏壓(不會自動 park)。`cal08_qubit_flux_spectroscopy.py` 是例外:它會額外把被測 qubit 以外、`flux_config` 裡列出的所有 qubit 主動 park 到 idle,而且從 2026-09-15 起,被測 qubit 自己也不再用這裡講的 SetParameter DC-ramp,改用下方 §3.2 的 `VoltageOffset` in-schedule pulse(見上方「重大異動」說明)——效果上仍是一次只動一條 flux 線,所以歸類上還是算 independent,但底層機制已經是 pulse 而非 DC-ramp,是目前唯一混用兩種機制的 node。
+現況(2026-10-13 更新):`cal01`–`cal07`、`cal09`、`cal11`–`cal16`(含 `cal05b`、`cal12b`)都是這個模式。`cal10` 跟 `cal08` 一樣是 in-schedule flux pulse(現為 `SquarePulse`)。`cal17`/`cal18a`/`cal18b` 是第三種:在 schedule 內用 `VoltageOffset` 把 flux 推到 sweet spot 再退回,不走 `apply_flux_config`(見 §2.1)。以下是原本的描述——每個 node 只會動到建構時傳入的 `qubit_names`,其餘 qubit / coupler 完全不會被這次實驗碰到,會維持前一次殘留的偏壓(不會自動 park)。`cal08_qubit_flux_spectroscopy.py` 是例外:它會額外把被測 qubit 以外、`flux_config` 裡列出的所有 qubit 主動 park 到 idle,而且從 2026-09-15 起,被測 qubit 自己也不再用這裡講的 SetParameter DC-ramp,改用下方 §3.2 的 `VoltageOffset` in-schedule pulse(見上方「重大異動」說明)——效果上仍是一次只動一條 flux 線,所以歸類上還是算 independent,但底層機制已經是 pulse 而非 DC-ramp,是目前唯一混用兩種機制的 node。
 
 `cal05_resonator_flux_spectroscopy.py` 看起來像「多 qubit joint」,但確認過後其實不是——它是把**同一個掃描值**,用同一套 `SetParameter` DC-ramp 機制,同時推給列表中每個 qubit 各自的 flux line(`schedule.loop(...) as flux_offset: for qubit in self.qubits: schedule.add(SetParameter(...))`)。這是「多個 qubit 共用同一條掃描軸」,不是「多個元件可以各自獨立設定、且能在單一 shot 內快速切換」的真 joint。
 
@@ -75,12 +121,14 @@ src/qblox_lab/experiments/
 
 **新發現(2026-08-28,重要,會影響缺口 1 的做法):`qblox_scheduler`(目前安裝版本)有一個會直接擋死「多元件同時」設計的 compiler bug。** 在建 `dev_snz_flux_pulse_check.py`(見下方新原型說明)時,原本想用 `ref_op`/`ref_pt="start"` 把 coupler 的 flux pulse 跟兩個 qubit 的 drive pulse 對齊成真正同時開始,結果編譯階段一直丟 `ValueError: Node ... not found in schedulables`。用 dummy connection 反覆 dry-run 二分排除後確認:**只要 `ref_op` 關聯到的任一方是 baseband/real-valued pulse(`VoltageOffset` 或 `SuddenNetZeroPulse`,也就是任何 flux port 操作),reference-graph 驗證器就會壞掉**——跟是否在 `schedule.loop()` 裡面、anchor 有沒有被重複參照、幾個 sibling、哪個 qubit/port 都無關;純 IQ 系(drive/readout)彼此用 `ref_op` 完全沒事(`dev_joint_flux_pulse_check.py` 現有的單 qubit 版本之所以能用,是因為它本來就沒有用 `ref_op` 對齊任何東西,只是單純循序 `schedule.add(..., rel_time=None)`)。**這代表「同時觸發多個 flux 通道」這個 joint 模式的核心需求,目前這個 scheduler 版本用 `ref_op` 這條路走不通**,要嘛升級 `qblox_scheduler` 版本確認是否修掉這個 bug,要嘛改用手動算好時間的 `rel_time`/pulse 的 `t0` 參數自己排絕對時間,不能再假設 `ref_op` 可以套用在任何牽涉 flux port 的操作上。
 
+**待確認(2026-10-13):`cal08_qubit_flux_spectroscopy.py` 目前的程式碼用 `ref_op` 把 drive `SquarePulse` 對齊到 flux `SquarePulse` 的起點(見 §2.1)。** 上面的 bug 是用 `VoltageOffset`/`SuddenNetZeroPulse` 測出來的,沒測過 `SquarePulse`。如果 cal08 這版能編譯並正確下發,就代表「flux 用 `SquarePulse` + `ref_op`」是一條可行路徑,缺口 1 的前置阻擋可能可以解除。這件事值得用 dummy connection 跑一次 `build_schedule()` → `compile()` 確認,也要順便確認 `qblox_scheduler` 版本在這段期間有沒有升級過(`uv.lock` 有變動)。
+
 **`dev_snz_flux_pulse_check.py`(新原型,2026-08-28 新增,未進 calNN 序列):** 驗證 `SuddenNetZeroPulse`(CZ gate 標準的 SNZ flux pulse 波形,Negirneac 2021)能不能在 coupler 的 flux port 上正確編譯/下發/回到 idle,鎖定 q1/q2 + cpl1_2。因為上述 bug,最終改成**循序式**(兩個 qubit 平行 reset+X90 → coupler SNZ pulse → 兩個 qubit 平行 measure),不是真正的「同時重疊」,但已經用 dummy connection 驗證過 `build_schedule()` → `compile()` → `plot_pulse_diagram()` 全部正常,**還沒上真實硬體跑**。只做機制驗證,不做 chevron 掃描/物理分析(沒有現成的 coupler flux ground truth 可比對)。
 
 ### 3.3 要補的缺口(照相依順序排列,前面沒做完後面不能開工)
 
-1. **把 `dev_joint_flux_pulse_check.py` 從單 qubit 推廣成多元件同時 VoltageOffset pulse**,在真實硬體上驗證多通道同時觸發沒有時序 / crosstalk 問題。這是所有 joint node 的共同前提。**更新(2026-08-28):`ref_op` 對齊法在目前 `qblox_scheduler` 版本下對 flux pulse 完全不可用(見上方 §3.2 的 bug 說明),這條缺口現在多了一個前置阻擋——要嘛先確認升級 scheduler 版本能不能修掉這個 bug,要嘛改設計成手動算絕對時間(`rel_time`/`t0`)的排程方式,「同時」目前無法用 `ref_op` 這條路徑做到,`dev_snz_flux_pulse_check.py` 目前只能做循序版本。**
-2. **Coupler flux config 的路徑驗證**——`flux_config_AS_QRC.json` 雖然已經列出 9 個 coupler 的 idle 值,但 `apply_flux_config` / `resolve_flux_offset_parameter` 解析 coupler port 的路徑目前沒有被任何現有 node 實際跑過(全部現有 node 都只用 qubit),需要單獨驗證。這是 `resonator_spectroscopy_coupler_flux` 動工前的前置需求。(修正,2026-08-28:`Qubit flux spectroscopy` 的 independent 版本不碰 coupler,不受這條阻擋,已用 `cal08_qubit_flux_spectroscopy.py` 建成——只有它未來的 joint 版本才會需要這條。)**進度更新(2026-08-28):`apply_flux_config`(`hardware.py`)已加上 coupler port fallback(見上方 §2 基礎設施更新),`config/flux_config.json` 也已補上 9 個 coupler entries,邏輯已用 dummy connection 驗證過,但真實硬體上的 ramp 還沒測過,缺口本身尚未關閉。**
+1. **把 `dev_joint_flux_pulse_check.py` 從單 qubit 推廣成多元件同時 VoltageOffset pulse**,在真實硬體上驗證多通道同時觸發沒有時序 / crosstalk 問題。這是所有 joint node 的共同前提。**更新(2026-08-28):`ref_op` 對齊法在目前 `qblox_scheduler` 版本下對 flux pulse 完全不可用(見上方 §3.2 的 bug 說明),這條缺口現在多了一個前置阻擋——要嘛先確認升級 scheduler 版本能不能修掉這個 bug,要嘛改設計成手動算絕對時間(`rel_time`/`t0`)的排程方式,「同時」目前無法用 `ref_op` 這條路徑做到,`dev_snz_flux_pulse_check.py` 目前只能做循序版本。** **(2026-10-13)cal08 現在用 `SquarePulse` + `ref_op`,可能是繞過這個 bug 的線索,見 §3.2 待確認段落。**
+2. **Coupler flux config 的路徑驗證**——`flux_config_AS_QRC.json` 雖然已經列出 9 個 coupler 的 idle 值,但 `apply_flux_config` / `resolve_flux_offset_parameter` 解析 coupler port 的路徑目前沒有被任何現有 node 實際跑過(全部現有 node 都只用 qubit),需要單獨驗證。這是 `resonator_spectroscopy_coupler_flux` 動工前的前置需求。(修正,2026-08-28:`Qubit flux spectroscopy` 的 independent 版本不碰 coupler,不受這條阻擋,已用 `cal08_qubit_flux_spectroscopy.py` 建成——只有它未來的 joint 版本才會需要這條。)**進度更新(2026-08-28):`apply_flux_config`(`hardware.py`)已加上 coupler port fallback(見上方 §2 基礎設施更新),`config/flux_config.json` 也已補上 9 個 coupler entries,邏輯已用 dummy connection 驗證過,但真實硬體上的 ramp 還沒測過,缺口本身尚未關閉。** **(2026-10-13)`flux_config_AS_QRC.json` 裡 `cpl9_10` 已被改成 0.2 V,暗示 coupler ramp 可能已在硬體上用過,但沒有驗證紀錄,需要使用者確認後才能關閉這個缺口。**
 3. **定義顯式的 `flux_mode` 參數**,跟 `cal13_iq_blob.py` 的 `multiplexed: bool` 同等級,例如 `flux_mode: Literal["independent", "joint"]`,讓同一份 node 檔案能透過參數在兩種模式間切換,而不是每個模式各寫一份檔案。要延續既有的「不建共用 module」慣例(每個檔案 copy-paste 自己的 helper),所以這個邏輯要在每個 node 檔案內各自複製一份,不集中成 shared util。
 4. 上面三項都在真實硬體驗證通過後,才把 joint 模式陸續補進下面 Phase B 列出的既有 node。
 5. **CZ gate(SNZ)參數的儲存位置——目前完全沒地方寫,需要先寫一個新的 Edge 類別。**(2026-08-28 查證)`qblox_scheduler` 的 `dut_config.json` 支援頂層 `"edges"` 區塊,透過 `QuantumDevice.add_edge()` 載入兩比特閘參數,概念上跟 `"elements"` 平行、一樣用 `edge_type` 欄位做 discriminated union 自動註冊(`Edge.__model_registry__`)。但內建只有 `CompositeSquareEdge`/`SpinEdge` 兩個 Edge 類別,參數都是方波格式(`square_amp`/`square_duration`/`parent_phase_correction`/`child_phase_correction`),完全沒有 SNZ 需要的 `amp_A`/`amp_B`/`net_zero_A_scale`/`t_pulse`/`t_phi`/`t_integral_correction`。`CompositeSquareEdge` 官方文件明講自己是「An example Edge implementation」,設計成範本讓人抄——要用 SNZ 就得寫一個新的 `CompositeSuddenNetZeroEdge`(仿 `composite_square_edge.py`,把 `cz` submodule 換成 SNZ 那 6 個欄位,`factory_func` 指向一個包 `SuddenNetZeroPulse` 的新 factory),寫好會自動註冊、不用改任何框架程式碼。這件事排在 `dev_snz_flux_pulse_check.py` 真實硬體驗證通過、確定要往正式 CZ chevron node 推進之後再做,現在只是先把路線圖記下來。
@@ -92,11 +140,12 @@ src/qblox_lab/experiments/
 | Notion 項目 | 對應程式 | independent | joint | 備註 |
 |---|---|---|---|---|
 | T1 & T1 Statistic | T1 已有 `cal11_energy_relaxation.py`;T1 Statistic 無 | ✅(T1 部分) | ❌ | T1 Statistic 卡在等使用者提供 Quantum Machine 參考腳本,尚未排期 |
-| T2 echo | 無 | ❌ | ❌ | 全新,需要先找/寫 reference |
-| IQ blob | `cal13_iq_blob.py`(已建立) | ✅ | ❌ | 已有 `multiplexed: bool`,但那是控制**讀取**是否同時進行,跟 flux 的 independent/joint 是兩件事,不要混用同一個參數 |
+| T1 fast tracking | `q1asm/`(2026-09-29,手寫 Q1ASM,不走 qblox_scheduler) | ⚠️ | ❌ | 尚未在硬體或 assembler 上驗證;是否就是 Notion 的「T1 Statistic」待確認 |
+| T2 echo | `cal12b_spin_echo.py`(已建立,2026-10-12) | ✅ | ❌ | `EchoAnalysis`;docstring 標題還是 T1 的,需修 |
+| IQ blob | `cal13_iq_blob.py`(已建立) | ✅ | ❌ | 已有 `multiplexed: bool`,但那是控制**讀取**是否同時進行,跟 flux 的 independent/joint 是兩件事,不要混用同一個參數。`active_reset_buffer` 目前沒傳進 `_add_reset()`,無作用(見 §2.1) |
 | CPMG | 無 | ❌ | ❌ | 同 T1 Statistic,等 QM 參考腳本 |
 | All_XY | 無 | ❌ | ❌ | 全新 |
-| Single qubit RB | 無(cal15 候選) | ❌ | ❌ | 全新,規格待定 |
+| Single qubit RB | `cal18a_RB.py` / `cal18b_RB_batched.py`(2026-10-01,外部程式碼) | ⚠️ | ❌ | 不符 repo node 介面、需重構;cal18b 匯入不存在的 `cal24_randomized_benchmarking`,目前無法 import。下一版 qblox-scheduler 的 segment mode 出來後 cal18b 的 batching 要重寫 |
 
 ### 4.2 Error amplification
 
@@ -107,7 +156,7 @@ src/qblox_lab/experiments/
 | Power Rabi optimization | `cal16_power_rabi_state.py`(已建立,2026-09-15) | ✅ | ❌ | 移植自 QM `09_Power_Rabi_State.py`(節點名稱本身就叫「error amplification」),語意上比 `cal09_rabi.py` 的一般 power Rabi 更貼近「optimization」這個字——但這是推測,尚未跟使用者確認過命名對應,見第 6 節開放問題。跟下面「Power Rabi」是否為同一個 node 也需要確認 |
 | Readout power optimization | `cal15_readout_power_optimization.py`(已建立) | ✅ | ❌ | |
 | Readout frequency optimization | `cal14_readout_frequency_optimization.py`(已建立) | ✅ | ❌ | |
-| Drag calibration | 無 | ❌ | ❌ | 全新 |
+| Drag calibration | `cal17_drag_pulse_calibration.py`(2026-10-01,外部程式碼) | ⚠️ | ❌ | 三線對稱法掃 DRAG beta;不符 repo node 介面、需重構;匯入不存在的 `custom_elements.FluxTunableTransmonElement`,目前無法 import |
 | AC stark shift | 無 | ❌ | ❌ | 全新 |
 
 ### 4.3 Resonator / Qubit spectroscopy
@@ -119,7 +168,7 @@ src/qblox_lab/experiments/
 | resonator_spectroscopy_coupler_flux | `cal05b_resonator_coupler_flux_spectroscopy.py`(已建立,2026-09-01) | ✅ | ❌ | 只掃 coupler 自己的 flux(`resolve_flux_offset_parameter`+`SetParameter`,同 cal05/cal08 機制),被測的兩個 qubit park 到各自 idle,不做 QM 參考檔的 qubit-flux crosstalk 補償(需要缺口 1 的 joint 機制)。分析沿用 `ResonatorFluxSpectroscopyAnalysis`(同 cal05),沒有搬 QM 參考檔那套 dip-detection 式 decouple-offset 分析。已用 `create_dummy_connections=True` + AS_QRC config(q1/q2 + `cpl1_2`)跑通 `build_schedule`→`hardware_agent.compile`→`simulated_data`→`analysis`→`plot` 全流程,確認缺口 2 的 coupler port 解析路徑可用；q4/q5 + `cpl4_5` 組合在 compile 階段會撞到既有的 NCO 頻率範圍限制(`cal05` 用 q4/q5 一樣會撞到,是既有 config 問題,非本節點新增),notebook 預設改用 q1/q2。真實硬體上的 coupler DC ramp 仍未驗證,缺口 2 尚未完全關閉。 |
 | resonator_spectroscopy_vs_power | `cal04_resonator_punchout.py`(已建立,即 `run04`) | ✅ | ❌ | |
 | Qubit_spectroscopy | `cal06`/`cal07`(已建立) | ✅ | ❌ | Notion 標「完成」,但那是指 independent 版本完成,joint 仍待做 |
-| Qubit flux spectroscopy | `cal08_qubit_flux_spectroscopy.py`(已建立,2026-08-28;2026-09-15 flux 機制改為 VoltageOffset pulse) | ✅(pulse 機制,見 §2 異動說明) | ❌ | 只動被測 qubit 自己的 flux,其餘 qubit park 到 idle,不碰 coupler,所以不受缺口 2 阻擋。2026-09-15 起改用 `dev_joint_flux_pulse_check.py` 的 VoltageOffset pulse 機制取代 SetParameter DC-ramp,但多 qubit 仍是序列觸發、非同時,故仍歸類 independent,不算真 joint;真實硬體尚未驗證新機制 |
+| Qubit flux spectroscopy | `cal08_qubit_flux_spectroscopy.py`(已建立,2026-08-28;2026-09-15 flux 機制改為 VoltageOffset pulse) | ✅(pulse 機制,見 §2.1) | ❌ | 只動被測 qubit 自己的 flux,其餘 qubit park 到 idle,不碰 coupler,所以不受缺口 2 阻擋。2026-09-15 改用 VoltageOffset pulse,2026-09-29 起再改成每個頻率點重打的 `SquarePulse` 並用 `ref_op` 對齊 drive(與 §3.2 bug 紀錄衝突,待確認);多 qubit 仍是序列觸發,故仍歸類 independent;docstring 與程式碼不一致;真實硬體尚未有驗證紀錄 |
 | Power Rabi | 疑似同 `cal09_rabi.py` | ✅ | ❌ | 見第 6 節開放問題 |
 
 ## 5. 建議施工順序
@@ -132,17 +181,27 @@ src/qblox_lab/experiments/
 **Phase B(把 joint 補進已存在的 node,建議順序)**
 `cal05`(resonator flux spectroscopy)→ `cal12`(Ramsey)→ `cal06`/`cal07`(Qubit spectroscopy)→ 其餘 independent-only 的 node,依實際需求決定是否真的需要 joint 版本(例如 readout optimization 的 joint 版本意義是什麼,建議先跟使用者確認,不要照單全收)。
 
+**Phase B'(2026-10-13 新增:讓已進 repo 的 node 真的能用)**
+1. 修 `cal17`/`cal18a`/`cal18b` 的 import(`custom_elements`、`cal24_randomized_benchmarking`、頂層 `dependencies`/`single_qubit_experiment_helpers`),至少先讓它們 import 得起來;要不要進一步重構成 repo 標準介面見 §6。
+2. 修 `cal13` 的 `active_reset_buffer` 沒傳下去的 bug。
+3. 跑 `dev_active_reset_diagnostic.py` 並把結論寫回這份文件,決定 active reset 能不能信。
+4. 確認 cal08 的 `SquarePulse` + `ref_op` 能否編譯(§3.2),並把 cal08 docstring 改成跟程式碼一致。
+
 **Phase C(全新 node)**
-`cal16` 起,依使用者當下優先序決定:目前看起來 All_XY / Single qubit RB / Drag calibration / AC stark shift / T2 echo 都還沒有 reference 腳本,T1 Statistic 與 CPMG 明確卡在等 QM 範例。
+`cal19` 起,依使用者當下優先序決定。T2 echo(cal12b)、Drag(cal17)、Single qubit RB(cal18a/b)已有檔案。剩下 All_XY / AC stark shift 還沒有 reference 腳本,T1 Statistic 與 CPMG 卡在等 QM 範例(`q1asm/` 的 T1 fast tracking 可能跟 T1 Statistic 有關,待確認)。
 
 ## 6. 開放問題(需要使用者決定,先不要自行假設)
 
 1. **「Power Rabi optimization」(Error amplification 分類)跟「Power Rabi」(spectroscopy 分類)是同一個 node 重複列出,還是兩個不同的實驗?**(2026-09-15 更新)目前暫時對應成:「Power Rabi」= `cal09_rabi.py` 的一般 power Rabi(單次擬合振盪抓 pi 振幅),「Power Rabi optimization」= `cal16_power_rabi_state.py` 的 error-amplification 版本(重複播放 N 次放大振幅誤差,更精確)——這個對應是根據 QM 參考檔命名推測的,還沒跟使用者確認過,需要跟使用者核對這個猜測是否正確。
 2. **哪些 node 真的需要 joint 模式?** Notion 上幾乎每一列都打了 independent/joint tag,但像 readout frequency/power optimization 這種本質上是「找當下最佳讀取參數」的 node,joint 版本的物理意義(多 qubit 同時找最佳讀取點?)需要使用者確認,不要為了填 tag 而硬做。
-3. **cal15 之後的建置順序**,目前是照 Notion 表格由上而下猜測優先序,實際要看哪個 node 對當前實驗最急迫。
+3. **cal19 之後的建置順序**,目前是照 Notion 表格由上而下猜測優先序,實際要看哪個 node 對當前實驗最急迫。
+4. **(2026-10-13)`cal17`/`cal18a`/`cal18b` 要重構成 repo 標準介面(`HardwareAgent` + `build_schedule()/simulated_data()/analysis()/plot()/update_device()`、`apply_flux_config`、無共用 module),還是接受它們維持外部程式碼的結構?** 如果 segment mode 很快就會出,cal18b 可能直接等新版再重寫比較省。
+5. **(2026-10-13)`q1asm/` 的 T1 fast tracking 是否對應 Notion 的「T1 Statistic」?** 它要不要編成 calNN?
+6. **(2026-10-13)`release_hardware()` 要不要推廣到每個 node 的 `run()`?** 目前只有 cal10 有。
 
 ## 7. 相關背景(既有架構決策,持續有效)
 
-- 不建共用 module,所有 helper 都是每個 node 檔案各自 copy-paste 一份(`_drive_port_clock`/`_readout_port_clock`/`_apply_flux_point` 等)。
-- `ConditionalReset`(active reset)目前只有 `dev_active_reset.py` 驗證過,尚未加進任何正式 node 的 `reset_type="active"`。
+- 不建共用 module,所有 helper 都是每個 node 檔案各自 copy-paste 一份(`_drive_port_clock`/`_readout_port_clock`/`_apply_flux_point` 等)。**例外(2026-10-13):`cal17`/`cal18a`/`cal18b` 用了共用的 `single_qubit_experiment_helpers/` 與 `dependencies/randomized_benchmarking/`,是否保留見 §6 第 4 題。**
+- `ConditionalReset`(active reset)已經是 `cal09`–`cal16`(含 `cal12b`)的 `reset_type="active"` 選項。但 `dev_active_reset_diagnostic.py` 是因為懷疑修正 X 根本沒觸發才建的,結論出來前 active reset 的結果不要當作已驗證(見 §2.1)。
+- `run()` 被中斷後硬體卡住時,用 `config/hardware.py` 的 `release_hardware()` 解除,不要另外呼叫 `cluster.stop_sequencer()`。
 - `multiplexed: bool`(`cal13_iq_blob.py`)是讀取時序的開關(同時讀 vs. 依序讀),跟這份文件討論的 flux `independent`/`joint` 是完全不同的兩個維度,新增 node 時不要把兩者混成同一個參數。
