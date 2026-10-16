@@ -28,7 +28,7 @@ from typing import Any, Literal, Mapping, Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 from qblox_scheduler import HardwareAgent, Schedule
-from qblox_scheduler.analysis.readout_calibration_analysis import ReadoutCalibrationAnalysis
+from qblox_applications.qblox_scheduler.analysis.readout_calibration_analysis import BaseReadoutCalibrationAnalysis
 from qblox_scheduler.operations import ConditionalReset, IdlePulse, Measure, Reset, X
 from qblox_scheduler.operations.expressions import DType
 from qblox_scheduler.operations.loop_domains import arange
@@ -57,7 +57,7 @@ class IQBlobResult:
     readout_fidelity: float
     confusion_matrix: np.ndarray
     success: bool
-    analysis_object: ReadoutCalibrationAnalysis
+    analysis_object: BaseReadoutCalibrationAnalysis
 
 
 class IQBlob:
@@ -107,13 +107,25 @@ class IQBlob:
             schedule.add(
                 ConditionalReset(
                     qubit_name=qubit_name,
-                    acq_channel=acq_channel or f"cond_{qubit_name}"
+                    acq_label=acq_channel or f"cond_{qubit_name}"
                 )
             )
             if active_reset_buffer > 0.0:
                 schedule.add(IdlePulse(active_reset_buffer))
         else:
             schedule.add(Reset(qubit_name))
+
+    def _apply_idle_flux_config(self) -> None:
+        """Ramp every flux-config qubit to its idle bias before pulsing.
+
+        Applies to *all* qubits listed in the flux config, not just the ones
+        being measured: the swept qubits need their own idle bias in place
+        before the schedule's ``SquarePulse`` flux pulses relative to it, and
+        every unmeasured qubit must be parked and left untouched.
+        """
+        if self.flux_config is None:
+            return
+        apply_flux_config(self.hardware_agent, self.flux_config)
 
     def build_schedule(
         self,
@@ -158,7 +170,7 @@ class IQBlob:
                     Measure(
                         qubit.name,
                         coords={f"rep_{qubit.name}": rep, f"state_{qubit.name}": 0},
-                        acq_channel=f"S21_{qubit.name}",
+                        acq_label=f"S21_{qubit.name}",
                     )
                 )
 
@@ -170,7 +182,7 @@ class IQBlob:
                     Measure(
                         qubit.name,
                         coords={f"rep_{qubit.name}": rep, f"state_{qubit.name}": 1},
-                        acq_channel=f"S21_{qubit.name}",
+                        acq_label=f"S21_{qubit.name}",
                     )
                 )
 
@@ -203,18 +215,13 @@ class IQBlob:
         timeout: int = 300,
     ) -> Dataset:
         """Build and execute the IQ-blob schedule."""
+        self._apply_idle_flux_config()
         schedule = self.build_schedule(
             repetitions=repetitions,
             reset_type=reset_type,
             multiplexed=multiplexed,
             active_reset_buffer=active_reset_buffer,
         )
-        if self.flux_config is not None:
-            apply_flux_config(
-                self.hardware_agent,
-                self.flux_config,
-                qubits=self.qubit_names,
-            )
         self.dataset = self.hardware_agent.run(schedule, timeout=timeout)
         self.results = {}
         return self.dataset
@@ -329,7 +336,7 @@ class IQBlob:
             analysis_dataset["y1"].attrs.update(name="Q", units="V")
             analysis_dataset["x0"].attrs.update(name="Prepared state", long_name="Prepared state")
 
-            analysis_object = ReadoutCalibrationAnalysis(dataset=analysis_dataset, plot_figures=False)
+            analysis_object = BaseReadoutCalibrationAnalysis(dataset=analysis_dataset, plot_figures=False)
             analysis_object.process_data()
             analysis_object.run_fitting()
             analysis_object.analyze_fit_results()

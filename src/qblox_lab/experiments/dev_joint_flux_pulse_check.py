@@ -166,7 +166,7 @@ class JointFluxPulseCheck:
                                 f"frequency_{qubit.name}": frequency,
                                 f"flux_pulse_{qubit.name}": flux_pulse_amplitude,
                             },
-                            acq_channel=f"S21_{qubit.name}",
+                            acq_label=f"S21_{qubit.name}",
                         )
                     )
                     schedule.add(IdlePulse(10e-6))
@@ -471,7 +471,7 @@ class JointFluxPulseDriveCheck:
                                 f"frequency_{qubit.name}": frequency,
                                 f"flux_pulse_{qubit.name}": flux_pulse_amplitude,
                             },
-                            acq_channel=f"S21_{qubit.name}",
+                            acq_label=f"S21_{qubit.name}",
                         )
                     )
                     schedule.add(IdlePulse(4e-9))
@@ -534,7 +534,7 @@ class JointFluxPulseDriveCheck:
             preview_schedule.add(SetClockFrequency(clock=clock, frequency=center + offset))
             preview_schedule.add(Reset(qubit.name))
             preview_schedule.add(
-                Measure(qubit.name, coords={}, acq_channel=f"S21_{qubit.name}")
+                Measure(qubit.name, coords={}, acq_label=f"S21_{qubit.name}")
             )
             preview_schedule.add(IdlePulse(4e-9))
         preview_schedule.add(

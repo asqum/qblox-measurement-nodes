@@ -3,23 +3,35 @@ import xarray as xr
 import lmfit
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+from typing import Any, Literal, Mapping, Sequence
 
-from single_qubit_experiment_helpers.experiment import SingleQubitExperiment
+from pathlib import Path
+from qblox_lab.experiments.single_qubit_experiment_helpers.experiment import (
+    SingleQubitExperiment,
+)
 
 # Qblox Scheduler Imports
-from qblox_scheduler import Schedule
-from qblox_scheduler.operations import IdlePulse, Measure, Reset, X, X90, Rxy, VoltageOffset
+from qblox_scheduler import Schedule, HardwareAgent
+from qblox_scheduler.operations import IdlePulse, Measure, Reset, X, X90, Rxy, VoltageOffset, ConditionalReset
 from qblox_scheduler.operations.expressions import DType
 from qblox_scheduler.operations.loop_domains import arange
 from qblox_scheduler.operations.acquisition_library import BinMode
 
 # Import the user's Clifford generation logic
-from dependencies.randomized_benchmarking.sequence_generator import randomized_benchmarking_sequence 
-from dependencies.randomized_benchmarking.clifford_group import SingleQubitClifford
-from dependencies.randomized_benchmarking.clifford_decompositions import epstein_efficient_decomposition
+from qblox_lab.experiments.dependencies.randomized_benchmarking.sequence_generator import (
+    randomized_benchmarking_sequence,
+)
+from qblox_lab.experiments.dependencies.randomized_benchmarking.clifford_group import (
+    SingleQubitClifford,
+)
+from qblox_lab.experiments.dependencies.randomized_benchmarking.clifford_decompositions import (
+    epstein_efficient_decomposition,
+)
 
 # Import Qblox compiler constants
 from qblox_scheduler.backends.qblox import constants
+from qblox_lab.config.hardware import apply_flux_config, load_flux_config
+from xarray import Dataset
 
 # Relax the grid time tolerance to prevent float accumulation crashes in long loops
 constants.GRID_TIME_TOLERANCE_TIME = 0.01
@@ -28,7 +40,7 @@ TIMEOUT_TIME = 3600
 FIGURE_SIZE = (10, 6)
 
 
-class MultiplexedSingleQubitRB(SingleQubitExperiment):
+class MultiplexedSingleQubitRB:
     """
     Standard Single Qubit Randomized Benchmarking (Thresholded).
     
@@ -36,24 +48,79 @@ class MultiplexedSingleQubitRB(SingleQubitExperiment):
     ground state return probability using hardware thresholding, and fits an 
     exponential decay to extract the Average Error Per Clifford (EPC).
     """
-    def __init__(self, qubits):
-        super().__init__(qubit=qubits[0]) 
-        self.qubits = qubits
-        self.dataset = None
-        self.analyses = {}
+    def __init__(
+        self,
+        hardware_agent: HardwareAgent,
+        qubits: Sequence[str],
+        flux_config: Mapping[str, Any] | str | Path | None = None,
+    ) -> None:
+        if not qubits:
+            raise ValueError("At least one qubit name is required.")
+        if len(set(qubits)) != len(qubits):
+            raise ValueError("Qubit names must be unique.")
+
+        self.hardware_agent = hardware_agent
+        self.qubit_names = tuple(qubits)
+        self.qubits = tuple(
+            hardware_agent.quantum_device.get_element(name) for name in self.qubit_names
+        )
+        self.flux_config = (
+            None if flux_config is None else load_flux_config(flux_config)
+        )
+        self.beta: tuple[float, ...] = ()
+        self.schedule: Schedule | None = None
+        self.dataset: Dataset | None = None
+        self.results: dict[str, Any] = {}
+        self.figures: dict[str, Any] = {}
+
+    @staticmethod
+    def _drive_port_clock(qubit: Any) -> str:
+        return f"{qubit.ports.microwave}-{qubit.name}.01"
+
+    @staticmethod
+    def _readout_port_clock(qubit: Any) -> str:
+        return f"{qubit.ports.readout}-{qubit.name}.ro"
+
+    @staticmethod
+    def _add_reset(
+        schedule: Schedule,
+        qubit_name: str,
+        reset_type: Literal["thermal", "active"],
+        acq_channel: str | None = None,
+    ) -> None:
+        """Reset a qubit: fixed-duration thermal wait, or measurement-based active reset."""
+        if reset_type == "active":
+            schedule.add(
+                ConditionalReset(qubit_name, acq_label=acq_channel or f"cond_{qubit_name}")
+            )
+        else:
+            schedule.add(Reset(qubit_name))
+    def _apply_idle_flux_config(self) -> None:
+        """Ramp every flux-config qubit to its idle bias before pulsing.
+
+        Applies to *all* qubits listed in the flux config, not just the ones
+        being measured: the swept qubits need their own idle bias in place
+        before the schedule's ``SquarePulse`` flux pulses relative to it, and
+        every unmeasured qubit must be parked and left untouched.
+        """
+        if self.flux_config is None:
+            return
+        apply_flux_config(self.hardware_agent, self.flux_config)
 
     # -------------------------------------------------------------------------
     # SCHEDULE GENERATION
     # -------------------------------------------------------------------------
-    @staticmethod
-    def _create_single_qubit_schedule(
-        qubit, clifford_lengths: list[int], n_seeds: int, repetitions: int
+    def build_schedule(
+        self,
+        *,
+        reset_type: Literal["thermal", "active"] = "thermal",
+        clifford_lengths: list[int], 
+        n_seeds: int, 
+        repetitions: int
     ) -> Schedule:
-        sched = Schedule(f"rb_{qubit.name}")
-        
-        # Move to sweet spot
-        sched.add(VoltageOffset(qubit.flux_params.sweet_spot, 0, port=qubit.ports.flux))
-        sched.add(IdlePulse(10e-6))
+        schedule = Schedule("SQRB")
+        measurement_schedule = Schedule("SQRB_measurement")
+        parallel_reference = None
 
         # Explicit mapping from the Epstein decomposition strings to physical Qblox Gates
         gate_map = {
@@ -65,93 +132,99 @@ class MultiplexedSingleQubitRB(SingleQubitExperiment):
             "X180": lambda q: X(qubit=q.name),
             "Y180": lambda q: Rxy(theta=180.0, phi=90.0, qubit=q.name),
         }
-
-        # 1. OUTERMOST HARDWARE LOOP
-        with sched.loop(arange(0, repetitions, 1, DType.NUMBER)):
-            
-            # 2. PYTHON UNROLLING: Sequence Lengths
-            for m in clifford_lengths:
+        for qubit in self.qubits:
+            drive_port_clock = self._drive_port_clock(qubit)
+            readout_port_clock = self._readout_port_clock(qubit)
+            qubit_schedule = Schedule(f"SQRB_{qubit.name}")
+            # 1. OUTERMOST HARDWARE LOOP
+            with qubit_schedule.loop(arange(0, repetitions, 1, DType.NUMBER)):
                 
-                # 3. PYTHON UNROLLING: Random Seeds
-                for seed_idx in range(n_seeds):
+                # 2. PYTHON UNROLLING: Sequence Lengths
+                for m in clifford_lengths:
                     
-                    clifford_sequence = randomized_benchmarking_sequence(
-                        n_cl=m, 
-                        desired_net_cl=0, 
-                        number_of_qubits=1, 
-                        seed=seed_idx, 
-                        generator=SingleQubitClifford
-                    )
+                    # 3. PYTHON UNROLLING: Random Seeds
+                    for seed_idx in range(n_seeds):
+                        
+                        clifford_sequence = randomized_benchmarking_sequence(
+                            n_cl=m, 
+                            desired_net_cl=0, 
+                            number_of_qubits=1, 
+                            seed=seed_idx, 
+                            generator=SingleQubitClifford
+                        )
 
-                    sched.add(Reset(qubit.name))
-                    
-                    # Decompose each Clifford ID into physical pulses
-                    for cl_id in clifford_sequence:
-                        pulse_list = epstein_efficient_decomposition[cl_id]
-                        for gate_str in pulse_list:
-                            if gate_str in gate_map:
-                                sched.add(gate_map[gate_str](qubit))
-                            else:
-                                raise ValueError(f"Unknown gate '{gate_str}' in decomposition!")
+                        self._add_reset(qubit_schedule, qubit.name, reset_type)
+                        
+                        # Decompose each Clifford ID into physical pulses
+                        for cl_id in clifford_sequence:
+                            pulse_list = epstein_efficient_decomposition[cl_id]
+                            for gate_str in pulse_list:
+                                if gate_str in gate_map:
+                                    qubit_schedule.add(gate_map[gate_str](qubit))
+                                else:
+                                    raise ValueError(f"Unknown gate '{gate_str}' in decomposition!")
 
-                    # Readout the state using Hardware Thresholding
-                    sched.add(Measure(
-                        qubit.name,
-                        coords={
-                            f"m_{qubit.name}": m,
-                            f"seed_{qubit.name}": seed_idx
-                        },
-                        acq_channel=f"S_21_{qubit.name}",
-                        acq_protocol="ThresholdedAcquisition", 
-                        bin_mode=BinMode.AVERAGE_APPEND  # <-- Corrected to silence the Qblox deprecation warning
-                    ))
+                        # Readout the state using Hardware Thresholding
+                        qubit_schedule.add(Measure(
+                            qubit.name,
+                            coords={
+                                f"m_{qubit.name}": m,
+                                f"seed_{qubit.name}": seed_idx
+                            },
+                            acq_label=f"S_21_{qubit.name}",
+                            acq_protocol="ThresholdedIQIntegration", 
+                            bin_mode=BinMode.AVERAGE_APPEND  # <-- Corrected to silence the Qblox deprecation warning
+                        ))
 
-        # Safety: Return flux to 0V at the end
-        sched.add(VoltageOffset(0.0, 0, port=qubit.ports.flux))
-        sched.add(IdlePulse(4e-9))
-
-        return sched
+            if parallel_reference is None:
+                parallel_reference = measurement_schedule.add(qubit_schedule)
+            else:
+                measurement_schedule.add(
+                    qubit_schedule,
+                    ref_op=parallel_reference,
+                    ref_pt="start",
+                )
+        schedule.add(measurement_schedule, rel_time=None)
+        self.schedule = schedule
+        return schedule
 
     # -------------------------------------------------------------------------
     # EXECUTION
     # -------------------------------------------------------------------------
-    def execute(
+    def run_measurement(
         self, 
+        *,
         clifford_lengths: list[int] = [1, 5, 10, 20, 40, 80, 150, 300], 
         n_seeds: int = 5, 
-        repetitions: int = 1000
-    ) -> None:
-        
-        self.multiplexed_schedule = Schedule("randomized_benchmarking_multiplexed")
-        ref = None
+        repetitions: int = 1000,
+        reset_type: Literal["thermal", "active"] = "thermal",
+        timeout: int = 300,
+    ) -> Dataset:
+        """Build and acquire the complete SQRB in one hardware run."""
+        self._apply_idle_flux_config()
+        schedule = self.build_schedule(
+            reset_type=reset_type,
+            clifford_lengths=clifford_lengths, 
+            n_seeds=n_seeds, 
+            repetitions=repetitions
+        )
 
-        for qubit_obj in self.qubits:
-            sub_sched = self._create_single_qubit_schedule(
-                qubit=qubit_obj, 
-                clifford_lengths=clifford_lengths, 
-                n_seeds=n_seeds, 
-                repetitions=repetitions
-            )
-            ref = self.multiplexed_schedule.add(sub_sched) if ref is None else self.multiplexed_schedule.add(sub_sched, ref_op=ref, ref_pt="start")
-
-        self.dataset = self.hw_agent.run(self.multiplexed_schedule, timeout=TIMEOUT_TIME)
-
-    def compile(self) -> object:
-        return self.hw_agent.compile(self.multiplexed_schedule)
+        self.dataset = self.hardware_agent.run(schedule, timeout=timeout)
+        self.results = {}
+        return self.dataset
 
     # -------------------------------------------------------------------------
     # ANALYSIS
     # -------------------------------------------------------------------------
-    def analyze(self) -> None:
+    def analysis(self) -> None:
         """
         Extracts P(|0>) from the hardware thresholding, averages over the seeds, 
         and fits the standard RB exponential decay to extract EPC.
         """
         if self.dataset is None:
-            print("No dataset available for analysis.")
-            return
+            raise RuntimeError("Call run_measurement() or simulated_data() first.")
 
-        self.analyses = {}
+        results = {}
 
         # Standard RB Decay Formula: P(m) = A * p^m + B
         def rb_decay(m, p, A, B):
@@ -234,7 +307,7 @@ class MultiplexedSingleQubitRB(SingleQubitExperiment):
             except Exception as e:
                 print(f"[{q.name}] CRITICAL FIT FAILURE: {e}.")
 
-            self.analyses[q.name] = {
+            results[q.name] = {
                 'success': success,
                 'fit_result': fit_result,
                 'unique_m': unique_m,
@@ -244,21 +317,22 @@ class MultiplexedSingleQubitRB(SingleQubitExperiment):
                 'epc': epc,
                 'depol_param': depolarization_param
             }
+        self.results = results
+        return results
 
     # -------------------------------------------------------------------------
     # PLOTTING
     # -------------------------------------------------------------------------
     def plot_analysis(self) -> None:
         """Plots the RB decay curves (all seeds + mean + fit)."""
-        if not self.analyses:
-            print("No analyses available. Run analyze() first.")
-            return
+        if not self.results: 
+            raise RuntimeError("Call analysis() before plotting.")
 
         tuid = self.dataset.attrs.get('tuid', 'Unknown TUID')
 
         for q in self.qubits:
-            if q.name not in self.analyses: continue
-            res = self.analyses[q.name]
+            if q.name not in self.results: continue
+            res = self.results[q.name]
 
             m_vals = res['unique_m']
             pivot_values = res['pivot_values']
@@ -293,7 +367,7 @@ class MultiplexedSingleQubitRB(SingleQubitExperiment):
             ax.set_title(f"Randomized Benchmarking - {q.name}\n(tuid: {tuid})", fontweight='bold')
             ax.set_xlabel(r"Number of Cliffords ($m$)")
             ax.set_ylabel(r"Ground State Return Probability $P(|0\rangle)$") # <-- Correct label for standard RB
-            ax.set_ylim(-0.05, 1.05)
+            ax.set_ylim(0.4, 1.05)
             ax.grid(True, linestyle='--', alpha=0.5)
             ax.legend(loc='lower left')
             
@@ -302,6 +376,7 @@ class MultiplexedSingleQubitRB(SingleQubitExperiment):
             ax.yaxis.set_major_formatter(formatter)
 
             fig.tight_layout()
+            self.figures[q.name] = fig
             plt.show()
 
     @property

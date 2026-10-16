@@ -32,14 +32,15 @@ from typing import Any, Literal, Mapping, Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 from qblox_scheduler import HardwareAgent, Schedule
-from qblox_scheduler.analysis.fitting_models import exp_damp_osc_func
-from qblox_scheduler.analysis.single_qubit_timedomain import RamseyAnalysis
-from qblox_scheduler.experiments import SetHardwareOption, SetParameter
+from qblox_applications.qblox_scheduler.analysis.fitting_models import exp_damp_osc_func
+from qblox_applications.qblox_scheduler.analysis.single_qubit_timedomain import BaseRamseyAnalysis
+from qblox_scheduler.segments import SetHardwareOption, SetParameter
 from qblox_scheduler.operations import (
     ConditionalReset,
     IdlePulse,
     Measure,
     Reset,
+    SetClockFrequency,
     ResetClockPhase,
     ShiftClockPhase,
     X90,
@@ -64,8 +65,8 @@ class RamseyResult:
     t2_star: float
     frequency_error: float
     success: bool
-    analysis_object_plus: RamseyAnalysis
-    analysis_object_minus: RamseyAnalysis
+    analysis_object_plus: BaseRamseyAnalysis
+    analysis_object_minus: BaseRamseyAnalysis
 
 
 class Ramsey:
@@ -115,7 +116,7 @@ class Ramsey:
         """Reset a qubit: fixed-duration thermal wait, or measurement-based active reset."""
         if reset_type == "active":
             schedule.add(
-                ConditionalReset(qubit_name, acq_channel=acq_channel or f"cond_{qubit_name}")
+                ConditionalReset(qubit_name, acq_label=acq_channel or f"cond_{qubit_name}")
             )
         else:
             schedule.add(Reset(qubit_name))
@@ -145,6 +146,18 @@ class Ramsey:
         if not np.isclose(step / 4e-9, round(step / 4e-9), rtol=0, atol=1e-6):
             raise ValueError("The delay sweep step must be a multiple of 4 ns.")
         return converted
+
+    def _apply_idle_flux_config(self) -> None:
+        """Ramp every flux-config qubit to its idle bias before pulsing.
+
+        Applies to *all* qubits listed in the flux config, not just the ones
+        being measured: the swept qubits need their own idle bias in place
+        before the schedule's ``SquarePulse`` flux pulses relative to it, and
+        every unmeasured qubit must be parked and left untouched.
+        """
+        if self.flux_config is None:
+            return
+        apply_flux_config(self.hardware_agent, self.flux_config)
 
     def build_schedule(
         self,
@@ -226,9 +239,20 @@ class Ramsey:
                         # would have accumulated under a real `sign * frequency_detuning`
                         # offset over `delay` seconds, instead of physically retuning the
                         # drive clock -- both X90 pulses stay exactly on-resonance.
-                        virtual_detuning_phase = delay * (sign * frequency_detuning * 360.0)
+                        # Implementing a phase kick:
+                        # Detune the qubit's clock by the required frequency detuning
                         qubit_schedule.add(
-                            ShiftClockPhase(phase_shift=virtual_detuning_phase, clock=drive_clock),
+                            SetClockFrequency(
+                                clock=drive_clock,
+                                frequency=qubit.clock_freqs.f01 + sign*frequency_detuning,
+                            )
+                        )
+                        # After a time tau, reset the qubit clock frequency to its original value
+                        qubit_schedule.add(
+                            SetClockFrequency(
+                                clock=drive_clock,
+                                frequency=qubit.clock_freqs.f01,
+                            ),
                             rel_time=delay,
                         )
                         qubit_schedule.add(X90(qubit.name))
@@ -240,7 +264,7 @@ class Ramsey:
                                     f"delay_{qubit.name}": delay,
                                     f"sign_{qubit.name}": sign,
                                 },
-                                acq_channel=f"S21_{qubit.name}",
+                                acq_label=f"S21_{qubit.name}",
                             )
                         )
             # The drive stays on-resonance throughout -- only the clock phase was
@@ -277,6 +301,7 @@ class Ramsey:
         timeout: int = 300,
     ) -> Dataset:
         """Build and acquire the complete Ramsey sweep in one hardware run."""
+        self._apply_idle_flux_config()
         schedule = self.build_schedule(
             delays=delays,
             frequency_detuning=frequency_detuning,
@@ -287,12 +312,7 @@ class Ramsey:
             readout_output_attenuation=readout_output_attenuation,
             readout_input_attenuation=readout_input_attenuation,
         )
-        if self.flux_config is not None:
-            apply_flux_config(
-                self.hardware_agent,
-                self.flux_config,
-                qubits=self.qubit_names,
-            )
+
         self.dataset = self.hardware_agent.run(schedule, timeout=timeout)
         self.results = {}
         return self.dataset
@@ -489,7 +509,7 @@ class Ramsey:
                     units="s",
                 )
 
-                analysis_object = RamseyAnalysis(dataset=analysis_dataset, plot_figures=False)
+                analysis_object = BaseRamseyAnalysis(dataset=analysis_dataset, plot_figures=False)
                 analysis_object.artificial_detuning = frequency_detuning
                 analysis_object.qubit_frequency = None
                 analysis_object.calibration_points = calibration_points

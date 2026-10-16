@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-CONFIG_DIR = Path(__file__).resolve().parents[3] / "config"
+CONFIG_DIR = Path(__file__).resolve().parents[3] / "config/10Q9C"
 
 
 @dataclass(frozen=True)
@@ -25,6 +25,6 @@ SESSIONS: dict[str, Session] = {
         hardware_config=CONFIG_DIR / "hw_config_AS_QRC.json",
         device_config=CONFIG_DIR / "dut_config_AS_QRC.json",
         flux_config=CONFIG_DIR / "flux_config_AS_QRC.json",
-        output_dir=Path("/home/reny871224/qblox/10q9c"),
+        output_dir=Path("/home/boris0403/qblox/10Q9C"),
     ),
 }

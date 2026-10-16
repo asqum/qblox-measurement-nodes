@@ -24,8 +24,8 @@ from typing import Any, Literal, Mapping, Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 from qblox_scheduler import HardwareAgent, Schedule
-from qblox_scheduler.analysis.fitting_models import hanger_func_complex_SI
-from qblox_scheduler.experiments import SetHardwareOption, SetParameter
+from qblox_applications.qblox_scheduler.analysis.fitting_models import hanger_func_complex_SI
+from qblox_scheduler.segments import SetHardwareOption, SetParameter
 from qblox_scheduler.operations import ConditionalReset, IdlePulse, Measure, Reset, X
 from qblox_scheduler.operations.expressions import DType
 from qblox_scheduler.operations.loop_domains import arange, linspace
@@ -91,7 +91,7 @@ class ReadoutFrequencyOptimization:
         """Reset a qubit: fixed-duration thermal wait, or measurement-based active reset."""
         if reset_type == "active":
             schedule.add(
-                ConditionalReset(qubit_name, acq_channel=acq_channel or f"cond_{qubit_name}")
+                ConditionalReset(qubit_name, acq_label=acq_channel or f"cond_{qubit_name}")
             )
         else:
             schedule.add(Reset(qubit_name))
@@ -206,7 +206,7 @@ class ReadoutFrequencyOptimization:
                             qubit.name,
                             freq=frequency,
                             coords={f"frequency_{qubit.name}": frequency, f"state_{qubit.name}": 0},
-                            acq_channel=f"S21_{qubit.name}",
+                            acq_label=f"S21_{qubit.name}",
                         )
                     )
 
@@ -217,7 +217,7 @@ class ReadoutFrequencyOptimization:
                             qubit.name,
                             freq=frequency,
                             coords={f"frequency_{qubit.name}": frequency, f"state_{qubit.name}": 1},
-                            acq_channel=f"S21_{qubit.name}",
+                            acq_label=f"S21_{qubit.name}",
                         )
                     )
                     # Settle time before the next frequency update / loop return

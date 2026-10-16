@@ -158,7 +158,7 @@ class SNZFluxPulseCheck:
             measure_reference = None
             for qubit in (self.qubit_a, self.qubit_b):
                 measure_schedule = Schedule(f"snz_flux_pulse_check_measure_{qubit.name}")
-                measure_schedule.add(Measure(qubit.name, acq_channel=f"S21_{qubit.name}"))
+                measure_schedule.add(Measure(qubit.name, acq_label=f"S21_{qubit.name}"))
                 if measure_reference is None:
                     measure_reference = check_schedule.add(measure_schedule, rel_time=None)
                 else:

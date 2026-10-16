@@ -197,7 +197,7 @@ class QubitSpectroscopyIntrinsicWidth(BroadbandQubitSpectroscopy):
                                         f"frequency_{qubit.name}": frequency,
                                         f"drive_amplitude_{qubit.name}": drive_amplitude,
                                     },
-                                    acq_channel=f"S21_{qubit.name}",
+                                    acq_label=f"S21_{qubit.name}",
                                 )
                             )
                             qubit_schedule.add(IdlePulse(4e-9))

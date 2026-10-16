@@ -9,9 +9,9 @@ from typing import Any, Literal, Mapping, Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 from qblox_scheduler import HardwareAgent, Schedule
-from qblox_scheduler.analysis.fitting_models import exp_decay_func
-from qblox_scheduler.analysis.single_qubit_timedomain import T1Analysis, EchoAnalysis
-from qblox_scheduler.experiments import SetHardwareOption, SetParameter
+from qblox_applications.qblox_scheduler.analysis.fitting_models import exp_decay_func
+from qblox_applications.qblox_scheduler.analysis.single_qubit_timedomain import BaseEchoAnalysis
+from qblox_scheduler.segments import SetHardwareOption, SetParameter
 from qblox_scheduler.operations import IdlePulse, Measure, Reset, X, ConditionalReset, X90
 from qblox_scheduler.operations.expressions import DType
 from qblox_scheduler.operations.loop_domains import arange, linspace
@@ -28,7 +28,7 @@ class SpinEchoResult:
     transmission: np.ndarray
     t2e: float
     success: bool
-    analysis_object: EchoAnalysis
+    analysis_object: BaseEchoAnalysis
 
 
 class SpinEcho:
@@ -77,7 +77,7 @@ class SpinEcho:
         """Reset a qubit: fixed-duration thermal wait, or measurement-based active reset."""
         if reset_type == "active":
             schedule.add(
-                ConditionalReset(qubit_name, acq_channel=acq_channel or f"cond_{qubit_name}")
+                ConditionalReset(qubit_name, acq_label=acq_channel or f"cond_{qubit_name}")
             )
         else:
             schedule.add(Reset(qubit_name))
@@ -187,7 +187,7 @@ class SpinEcho:
                         Measure(
                             qubit.name,
                             coords={f"delay_{qubit.name}": delay},
-                            acq_channel=f"S21_{qubit.name}",
+                            acq_label=f"S21_{qubit.name}",
                             
                         )
                     )
@@ -395,7 +395,7 @@ class SpinEcho:
                 units="s",
             )
 
-            analysis_object = EchoAnalysis(
+            analysis_object = BaseEchoAnalysis(
                 dataset=analysis_dataset,
                 plot_figures=False,
             )

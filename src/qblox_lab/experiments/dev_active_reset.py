@@ -61,7 +61,7 @@ class ActiveReset:
 
     @staticmethod
     def _add_reset(schedule: Schedule, qubit_name: str, acq_channel: str | None = None) -> None:
-        schedule.add(ConditionalReset(qubit_name, acq_channel=acq_channel or f"cond_{qubit_name}"))
+        schedule.add(ConditionalReset(qubit_name, acq_label=acq_channel or f"cond_{qubit_name}"))
 
     def build_schedule(self, *, repetitions: int) -> Schedule:
         """Build the active-reset verification schedule without executing hardware."""
@@ -78,7 +78,7 @@ class ActiveReset:
                     Measure(
                         qubit.name,
                         coords={f"rep_{qubit.name}": rep, f"state_{qubit.name}": 0},
-                        acq_channel=f"S21_{qubit.name}",
+                        acq_label=f"S21_{qubit.name}",
                     )
                 )
 
@@ -89,7 +89,7 @@ class ActiveReset:
                     Measure(
                         qubit.name,
                         coords={f"rep_{qubit.name}": rep, f"state_{qubit.name}": 1},
-                        acq_channel=f"S21_{qubit.name}",
+                        acq_label=f"S21_{qubit.name}",
                     )
                 )
 

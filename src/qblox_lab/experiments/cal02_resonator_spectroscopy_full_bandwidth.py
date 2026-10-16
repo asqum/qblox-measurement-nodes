@@ -11,8 +11,8 @@ from typing import Any, Mapping, Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 from qblox_scheduler import HardwareAgent, Schedule
-from qblox_scheduler.analysis.fitting_models import hanger_func_complex_SI
-from qblox_scheduler.experiments import SetHardwareOption, SetParameter
+from qblox_applications.qblox_scheduler.analysis.fitting_models import hanger_func_complex_SI
+from qblox_scheduler.segments import SetHardwareOption, SetParameter
 from qblox_scheduler.operations import IdlePulse, Measure, SquarePulse
 from qblox_scheduler.operations.expressions import DType
 from qblox_scheduler.operations.loop_domains import arange, linspace
@@ -285,7 +285,7 @@ class BroadbandResonatorSpectroscopy:
                                 qubit.name,
                                 freq=frequency,
                                 coords={f"frequency_{qubit.name}": frequency},
-                                acq_channel=f"S21_{qubit.name}",
+                                acq_label=f"S21_{qubit.name}",
                             )
                         )
                         qubit_schedule.add(IdlePulse(10e-6))

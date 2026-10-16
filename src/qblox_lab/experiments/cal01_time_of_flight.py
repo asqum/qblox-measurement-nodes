@@ -9,8 +9,8 @@ from typing import Any, Mapping, Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 from qblox_scheduler import HardwareAgent, Schedule
-from qblox_scheduler.analysis.time_of_flight_analysis import TimeOfFlightAnalysis
-from qblox_scheduler.experiments import SetHardwareOption
+from qblox_applications.qblox_scheduler.analysis.time_of_flight_analysis import BaseTimeOfFlightAnalysis
+from qblox_scheduler.segments import SetHardwareOption
 from qblox_scheduler.operations import IdlePulse, Measure, SetClockFrequency
 from qblox_scheduler.operations.expressions import DType
 from qblox_scheduler.operations.loop_domains import arange
@@ -26,7 +26,7 @@ class TimeOfFlightResult:
     time_of_flight: float
     nco_propagation_delay: float
     success: bool
-    analysis_object: TimeOfFlightAnalysis
+    analysis_object: BaseTimeOfFlightAnalysis
 
 
 class TimeOfFlight:
@@ -140,7 +140,7 @@ class TimeOfFlight:
                         pulse_amp=pulse_amplitude,
                         acq_duration=acquisition_duration,
                         acq_delay=acquisition_delay,
-                        acq_channel=f"trace_{qubit.name}",
+                        acq_label=f"trace_{qubit.name}",
                     )
                 )
 
@@ -225,7 +225,7 @@ class TimeOfFlight:
                 },
             )
             analysis_dataset["y0"].attrs["units"] = "V"
-            analysis_object = TimeOfFlightAnalysis(
+            analysis_object = BaseTimeOfFlightAnalysis(
                 dataset=analysis_dataset,
                 plot_figures=False,
             )

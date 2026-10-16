@@ -10,11 +10,11 @@ from typing import Any, Mapping, Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 from qblox_scheduler import HardwareAgent, Schedule
-from qblox_scheduler.analysis.fitting_models import cos_func, hanger_func_complex_SI
-from qblox_scheduler.analysis.spectroscopy_analysis import (
-    ResonatorFluxSpectroscopyAnalysis,
+from qblox_applications.qblox_scheduler.analysis.fitting_models import cos_func, hanger_func_complex_SI
+from qblox_applications.qblox_scheduler.analysis.spectroscopy_analysis import (
+    BaseResonatorFluxSpectroscopyAnalysis,
 )
-from qblox_scheduler.experiments import SetHardwareOption, SetParameter
+from qblox_scheduler.segments import SetHardwareOption, SetParameter
 from qblox_scheduler.operations import IdlePulse, Measure
 from qblox_scheduler.operations.expressions import DType
 from qblox_scheduler.operations.loop_domains import arange, linspace
@@ -26,6 +26,7 @@ from qblox_lab.config.hardware import (
     load_flux_config,
     resolve_flux_offset_parameter,
     update_flux_config,
+    apply_flux_config
 )
 
 
@@ -146,7 +147,7 @@ class ResonatorFluxResult:
     tuning_amplitude: float
     flux_period: float
     success: bool
-    analysis_object: ResonatorFluxSpectroscopyAnalysis
+    analysis_object: BaseResonatorFluxSpectroscopyAnalysis
 
 
 class ResonatorFluxSpectroscopy:
@@ -217,6 +218,18 @@ class ResonatorFluxSpectroscopy:
         self.flux_parameters = parameters
         return parameters
 
+    def _apply_idle_flux_config(self) -> None:
+        """Ramp every flux-config qubit to its idle bias before pulsing.
+
+        Applies to *all* qubits listed in the flux config, not just the ones
+        being measured: the swept qubits need their own idle bias in place
+        before the schedule's ``SquarePulse`` flux pulses relative to it, and
+        every unmeasured qubit must be parked and left untouched.
+        """
+        if self.flux_config is None:
+            return
+        apply_flux_config(self.hardware_agent, self.flux_config)
+
     def _build_measurement_schedule(
         self,
         *,
@@ -255,7 +268,7 @@ class ResonatorFluxSpectroscopy:
                             qubit.name,
                             freq=frequency,
                             coords=coordinates,
-                            acq_channel=f"S21_{qubit.name}",
+                            acq_label=f"S21_{qubit.name}",
                         )
                     )
                     qubit_schedule.add(IdlePulse(10e-6))
@@ -424,6 +437,7 @@ class ResonatorFluxSpectroscopy:
         timeout: int = 300,
     ) -> Dataset:
         """Execute the scan and restore the configured bias, or 0 V by default."""
+        self._apply_idle_flux_config()
         schedule = self.build_schedule(
             frequency_center=frequency_center,
             frequency_width=frequency_width,
@@ -728,7 +742,7 @@ class ResonatorFluxSpectroscopy:
             analysis_dataset["x0"].attrs.update(name="Frequency", units="Hz")
             analysis_dataset["x1"].attrs.update(name="Flux offset", units="V")
 
-            analysis_object = ResonatorFluxSpectroscopyAnalysis(
+            analysis_object = BaseResonatorFluxSpectroscopyAnalysis(
                 dataset=analysis_dataset,
                 plot_figures=False,
             )

@@ -155,7 +155,7 @@ class ActiveResetDiagnostic:
                     Measure(
                         q,
                         coords={f"rep_{q}": rep, f"branch_{q}": branch},
-                        acq_channel=signal_name,
+                        acq_label=signal_name,
                     )
                 )
 
@@ -171,7 +171,7 @@ class ActiveResetDiagnostic:
             schedule.add(
                 ConditionalReset(
                     q,
-                    acq_channel=f"cond_{q}",
+                    acq_label=f"cond_{q}",
                     coords={f"cond_rep_{q}": rep, f"cond_branch_{q}": 2},
                 )
             )
@@ -182,7 +182,7 @@ class ActiveResetDiagnostic:
             schedule.add(
                 ConditionalReset(
                     q,
-                    acq_channel=f"cond_{q}",
+                    acq_label=f"cond_{q}",
                     coords={f"cond_rep_{q}": rep, f"cond_branch_{q}": 3},
                 )
             )

@@ -11,6 +11,15 @@ from typing import Any, Mapping, Sequence
 from qblox_scheduler import HardwareAgent, QuantumDevice
 
 
+# Importing these registers BasicTransmonElement / CompositeSquareEdge into
+# qblox_scheduler's DeviceElement/Edge model registries (via
+# __pydantic_init_subclass__), which QuantumDevice deserialization needs to
+# resolve "element_type"/"edge_type" entries in a device-configuration JSON
+# file. Without this, loading a device configuration raises a pydantic
+  # noqa: F401
+from qblox_applications.qblox_scheduler.superconducting.transmon import BasicTransmonElement  # noqa: F401
+
+
 _REAL_OUTPUT_PATTERN = re.compile(
     r"^(?P<cluster>[^.]+)\.module(?P<slot>\d+)\.real_output_(?P<output>\d+)$"
 )

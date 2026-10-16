@@ -46,8 +46,8 @@ import lmfit
 import matplotlib.pyplot as plt
 import numpy as np
 from qblox_scheduler import HardwareAgent, Schedule
-from qblox_scheduler.analysis.fitting_models import lorentzian_func
-from qblox_scheduler.experiments import SetHardwareOption, SetParameter
+from qblox_applications.qblox_scheduler.analysis.fitting_models import lorentzian_func
+from qblox_scheduler.segments import SetHardwareOption, SetParameter
 from qblox_scheduler.operations import (
     IdlePulse,
     Measure,
@@ -345,7 +345,7 @@ class QubitFluxSpectroscopy:
                                     f"frequency_{qubit.name}": frequency,
                                     f"flux_pulse_{qubit.name}": flux_pulse_amplitude,
                                 },
-                                acq_channel=f"S21_{qubit.name}",
+                                acq_label=f"S21_{qubit.name}",
                             )
                         )
                         schedule.add(IdlePulse(4e-9))

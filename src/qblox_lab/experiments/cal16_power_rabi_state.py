@@ -48,8 +48,8 @@ import lmfit
 import matplotlib.pyplot as plt
 import numpy as np
 from qblox_scheduler import HardwareAgent, Schedule
-from qblox_scheduler.analysis.fitting_models import cos_func
-from qblox_scheduler.experiments import SetHardwareOption, SetParameter
+from qblox_applications.qblox_scheduler.analysis.fitting_models import cos_func
+from qblox_scheduler.segments import SetHardwareOption, SetParameter
 from qblox_scheduler.operations import ConditionalReset, Measure, Reset, Rxy
 from qblox_scheduler.operations.expressions import DType
 from qblox_scheduler.operations.loop_domains import arange, linspace
@@ -136,7 +136,7 @@ class PowerRabiState:
         """Reset a qubit: fixed-duration thermal wait, or measurement-based active reset."""
         if reset_type == "active":
             schedule.add(
-                ConditionalReset(qubit_name, acq_channel=acq_channel or f"cond_{qubit_name}")
+                ConditionalReset(qubit_name, acq_label=acq_channel or f"cond_{qubit_name}")
             )
         else:
             schedule.add(Reset(qubit_name))
@@ -277,7 +277,7 @@ class PowerRabiState:
                                     f"n_pi_{qubit.name}": n_pi,
                                     f"amplitude_factor_{qubit.name}": amplitude_factor,
                                 },
-                                acq_channel=f"S21_{qubit.name}",
+                                acq_label=f"S21_{qubit.name}",
                             )
                         )
 
@@ -597,7 +597,7 @@ class PowerRabiState:
             else:
                 selection_method = "error_amplification"
                 mean_population = population.mean(axis=0)
-                best_index = int(np.argmax(mean_population))
+                best_index = int(np.argmin(mean_population))
                 pi_pulse_amplitude = float(absolute_amplitudes[best_index])
                 success = True
 

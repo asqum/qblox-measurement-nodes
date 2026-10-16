@@ -9,9 +9,9 @@ from typing import Any, Literal, Mapping, Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 from qblox_scheduler import HardwareAgent, Schedule
-from qblox_scheduler.analysis.fitting_models import exp_decay_func
-from qblox_scheduler.analysis.single_qubit_timedomain import T1Analysis
-from qblox_scheduler.experiments import SetHardwareOption, SetParameter
+from qblox_applications.qblox_scheduler.analysis.fitting_models import exp_decay_func
+from qblox_applications.qblox_scheduler.analysis.single_qubit_timedomain import BaseT1Analysis
+from qblox_scheduler.segments import SetHardwareOption, SetParameter
 from qblox_scheduler.operations import IdlePulse, Measure, Reset, X, ConditionalReset
 from qblox_scheduler.operations.expressions import DType
 from qblox_scheduler.operations.loop_domains import arange, linspace
@@ -28,7 +28,7 @@ class EnergyRelaxationResult:
     transmission: np.ndarray
     t1: float
     success: bool
-    analysis_object: T1Analysis
+    analysis_object: BaseT1Analysis
 
 
 class EnergyRelaxation:
@@ -77,7 +77,7 @@ class EnergyRelaxation:
         """Reset a qubit: fixed-duration thermal wait, or measurement-based active reset."""
         if reset_type == "active":
             schedule.add(
-                ConditionalReset(qubit_name, acq_channel=acq_channel or f"cond_{qubit_name}")
+                ConditionalReset(qubit_name, acq_label=acq_channel or f"cond_{qubit_name}")
             )
         else:
             schedule.add(Reset(qubit_name))
@@ -112,6 +112,18 @@ class EnergyRelaxation:
         if not np.isclose(step / 4e-9, round(step / 4e-9), rtol=0, atol=1e-6):
             raise ValueError("The relaxation-delay step must be a multiple of 4 ns.")
         return converted
+
+    def _apply_idle_flux_config(self) -> None:
+        """Ramp every flux-config qubit to its idle bias before pulsing.
+
+        Applies to *all* qubits listed in the flux config, not just the ones
+        being measured: the swept qubits need their own idle bias in place
+        before the schedule's ``SquarePulse`` flux pulses relative to it, and
+        every unmeasured qubit must be parked and left untouched.
+        """
+        if self.flux_config is None:
+            return
+        apply_flux_config(self.hardware_agent, self.flux_config)
 
     def build_schedule(
         self,
@@ -184,7 +196,8 @@ class EnergyRelaxation:
                         Measure(
                             qubit.name,
                             coords={f"delay_{qubit.name}": delay},
-                            acq_channel=f"S21_{qubit.name}",
+                            acq_label=f"S21_{qubit.name}",
+                            
                         )
                     )
                     qubit_schedule.add(IdlePulse(4e-9))
@@ -216,6 +229,7 @@ class EnergyRelaxation:
         timeout: int = 300,
     ) -> Dataset:
         """Build and acquire the complete T1 sweep in one hardware run."""
+        self._apply_idle_flux_config()
         schedule = self.build_schedule(
             delays=delays,
             repetitions=repetitions,
@@ -225,12 +239,6 @@ class EnergyRelaxation:
             readout_output_attenuation=readout_output_attenuation,
             readout_input_attenuation=readout_input_attenuation,
         )
-        if self.flux_config is not None:
-            apply_flux_config(
-                self.hardware_agent,
-                self.flux_config,
-                qubits=self.qubit_names,
-            )
         self.dataset = self.hardware_agent.run(schedule, timeout=timeout)
         self.results = {}
         return self.dataset
@@ -391,7 +399,7 @@ class EnergyRelaxation:
                 units="s",
             )
 
-            analysis_object = T1Analysis(
+            analysis_object = BaseT1Analysis(
                 dataset=analysis_dataset,
                 plot_figures=False,
             )

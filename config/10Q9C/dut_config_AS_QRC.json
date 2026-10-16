@@ -1,0 +1,1327 @@
+{
+  "name": "flux_tunable_transmons",
+  "elements": {
+    "q1": {
+      "name": "q1",
+      "element_type": "BasicTransmonElement",
+      "reset": {
+        "name": "reset",
+        "duration": 0.0001
+      },
+      "rxy": {
+        "name": "rxy",
+        "amp180": 0.049661735261417234,
+        "beta": -7.886765230261032e-11,
+        "duration": 4e-8
+      },
+      "measure": {
+        "name": "measure",
+        "pulse_type": "SquarePulse",
+        "pulse_amp": 0.0595,
+        "pulse_duration": 2e-6,
+        "acq_label": 0,
+        "acq_delay": 2.22e-7,
+        "integration_time": 2e-6,
+        "reset_clock_phase": true,
+        "acq_weights_a": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weights_b": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weight_type": "SSB",
+        "acq_rotation": 65.34052741743358,
+        "acq_threshold": 0.0001550614312364777,
+        "num_points": 1
+      },
+      "pulse_compensation": {
+        "name": "pulse_compensation",
+        "max_compensation_amp": NaN,
+        "time_grid": NaN,
+        "sampling_rate": NaN,
+        "min_duration": NaN
+      },
+      "ports": {
+        "name": "ports",
+        "microwave": "q1:mw",
+        "flux": "q1:fl",
+        "readout": "q1:res"
+      },
+      "clock_freqs": {
+        "name": "clock_freqs",
+        "f01": 3547075407.4222927,
+        "f12": 3022761463.0,
+        "readout": 6056042556.087842
+      }
+    },
+    "q2": {
+      "name": "q2",
+      "element_type": "BasicTransmonElement",
+      "reset": {
+        "name": "reset",
+        "duration": 0.0001
+      },
+      "rxy": {
+        "name": "rxy",
+        "amp180": 0.5,
+        "beta": 0.0,
+        "duration": 3.2e-8
+      },
+      "measure": {
+        "name": "measure",
+        "pulse_type": "SquarePulse",
+        "pulse_amp": 0.09909999999999998,
+        "pulse_duration": 5e-6,
+        "acq_label": 0,
+        "acq_delay": 2e-7,
+        "integration_time": 5e-6,
+        "reset_clock_phase": true,
+        "acq_weights_a": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weights_b": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weight_type": "SSB",
+        "acq_rotation": 0.0,
+        "acq_threshold": 0.0,
+        "num_points": 1
+      },
+      "pulse_compensation": {
+        "name": "pulse_compensation",
+        "max_compensation_amp": NaN,
+        "time_grid": NaN,
+        "sampling_rate": NaN,
+        "min_duration": NaN
+      },
+      "ports": {
+        "name": "ports",
+        "microwave": "q2:mw",
+        "flux": "q2:fl",
+        "readout": "q2:res"
+      },
+      "clock_freqs": {
+        "name": "clock_freqs",
+        "f01": 3243345989.5208592,
+        "f12": 5215101840.0,
+        "readout": 6176045449.557807
+      }
+    },
+    "q3": {
+      "name": "q3",
+      "element_type": "BasicTransmonElement",
+      "reset": {
+        "name": "reset",
+        "duration": 1e-6
+      },
+      "rxy": {
+        "name": "rxy",
+        "amp180": 0.5,
+        "beta": 0.0,
+        "duration": 3.2e-8
+      },
+      "measure": {
+        "name": "measure",
+        "pulse_type": "SquarePulse",
+        "pulse_amp": 0.09909999999999998,
+        "pulse_duration": 5e-6,
+        "acq_label": 0,
+        "acq_delay": 2e-7,
+        "integration_time": 5e-6,
+        "reset_clock_phase": true,
+        "acq_weights_a": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weights_b": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weight_type": "SSB",
+        "acq_rotation": 0.0,
+        "acq_threshold": 0.0,
+        "num_points": 1
+      },
+      "pulse_compensation": {
+        "name": "pulse_compensation",
+        "max_compensation_amp": NaN,
+        "time_grid": NaN,
+        "sampling_rate": NaN,
+        "min_duration": NaN
+      },
+      "ports": {
+        "name": "ports",
+        "microwave": "q3:mw",
+        "flux": "q3:fl",
+        "readout": "q3:res"
+      },
+      "clock_freqs": {
+        "name": "clock_freqs",
+        "f01": 3395040143.596838,
+        "f12": 5215101840.0,
+        "readout": 5950174355.792092
+      }
+    },
+    "q4": {
+      "name": "q4",
+      "element_type": "BasicTransmonElement",
+      "reset": {
+        "name": "reset",
+        "duration": 1e-6
+      },
+      "rxy": {
+        "name": "rxy",
+        "amp180": 0.5,
+        "beta": 0.0,
+        "duration": 3.2e-8
+      },
+      "measure": {
+        "name": "measure",
+        "pulse_type": "SquarePulse",
+        "pulse_amp": 0.05,
+        "pulse_duration": 1e-6,
+        "acq_label": 0,
+        "acq_delay": 2e-7,
+        "integration_time": 1e-6,
+        "reset_clock_phase": true,
+        "acq_weights_a": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weights_b": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weight_type": "SSB",
+        "acq_rotation": 0.0,
+        "acq_threshold": 0.0,
+        "num_points": 1
+      },
+      "pulse_compensation": {
+        "name": "pulse_compensation",
+        "max_compensation_amp": NaN,
+        "time_grid": NaN,
+        "sampling_rate": NaN,
+        "min_duration": NaN
+      },
+      "ports": {
+        "name": "ports",
+        "microwave": "q4:mw",
+        "flux": "q4:fl",
+        "readout": "q4:res"
+      },
+      "clock_freqs": {
+        "name": "clock_freqs",
+        "f01": 5444304931.0,
+        "f12": 5215101840.0,
+        "readout": 7490649437.0
+      }
+    },
+    "q5": {
+      "name": "q5",
+      "element_type": "BasicTransmonElement",
+      "reset": {
+        "name": "reset",
+        "duration": 1e-6
+      },
+      "rxy": {
+        "name": "rxy",
+        "amp180": 0.5,
+        "beta": 0.0,
+        "duration": 3.2e-8
+      },
+      "measure": {
+        "name": "measure",
+        "pulse_type": "SquarePulse",
+        "pulse_amp": 0.05,
+        "pulse_duration": 1e-6,
+        "acq_label": 0,
+        "acq_delay": 2e-7,
+        "integration_time": 1e-6,
+        "reset_clock_phase": true,
+        "acq_weights_a": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weights_b": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weight_type": "SSB",
+        "acq_rotation": 0.0,
+        "acq_threshold": 0.0,
+        "num_points": 1
+      },
+      "pulse_compensation": {
+        "name": "pulse_compensation",
+        "max_compensation_amp": NaN,
+        "time_grid": NaN,
+        "sampling_rate": NaN,
+        "min_duration": NaN
+      },
+      "ports": {
+        "name": "ports",
+        "microwave": "q5:mw",
+        "flux": "q5:fl",
+        "readout": "q5:res"
+      },
+      "clock_freqs": {
+        "name": "clock_freqs",
+        "f01": 5444304931.0,
+        "f12": 5215101840.0,
+        "readout": 7490649437.0
+      }
+    },
+    "q6": {
+      "name": "q6",
+      "element_type": "BasicTransmonElement",
+      "reset": {
+        "name": "reset",
+        "duration": 1e-6
+      },
+      "rxy": {
+        "name": "rxy",
+        "amp180": 0.5,
+        "beta": 0.0,
+        "duration": 3.2e-8
+      },
+      "measure": {
+        "name": "measure",
+        "pulse_type": "SquarePulse",
+        "pulse_amp": 0.05,
+        "pulse_duration": 1e-6,
+        "acq_label": 0,
+        "acq_delay": 2e-7,
+        "integration_time": 1e-6,
+        "reset_clock_phase": true,
+        "acq_weights_a": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weights_b": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weight_type": "SSB",
+        "acq_rotation": 0.0,
+        "acq_threshold": 0.0,
+        "num_points": 1
+      },
+      "pulse_compensation": {
+        "name": "pulse_compensation",
+        "max_compensation_amp": NaN,
+        "time_grid": NaN,
+        "sampling_rate": NaN,
+        "min_duration": NaN
+      },
+      "ports": {
+        "name": "ports",
+        "microwave": "q6:mw",
+        "flux": "q6:fl",
+        "readout": "q6:res"
+      },
+      "clock_freqs": {
+        "name": "clock_freqs",
+        "f01": 5444304931.0,
+        "f12": 5215101840.0,
+        "readout": 7490649437.0
+      }
+    },
+    "q7": {
+      "name": "q7",
+      "element_type": "BasicTransmonElement",
+      "reset": {
+        "name": "reset",
+        "duration": 1e-6
+      },
+      "rxy": {
+        "name": "rxy",
+        "amp180": 0.5,
+        "beta": 0.0,
+        "duration": 3.2e-8
+      },
+      "measure": {
+        "name": "measure",
+        "pulse_type": "SquarePulse",
+        "pulse_amp": 0.05,
+        "pulse_duration": 1e-6,
+        "acq_label": 0,
+        "acq_delay": 2e-7,
+        "integration_time": 1e-6,
+        "reset_clock_phase": true,
+        "acq_weights_a": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weights_b": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weight_type": "SSB",
+        "acq_rotation": 0.0,
+        "acq_threshold": 0.0,
+        "num_points": 1
+      },
+      "pulse_compensation": {
+        "name": "pulse_compensation",
+        "max_compensation_amp": NaN,
+        "time_grid": NaN,
+        "sampling_rate": NaN,
+        "min_duration": NaN
+      },
+      "ports": {
+        "name": "ports",
+        "microwave": "q7:mw",
+        "flux": "q7:fl",
+        "readout": "q7:res"
+      },
+      "clock_freqs": {
+        "name": "clock_freqs",
+        "f01": 5444304931.0,
+        "f12": 5215101840.0,
+        "readout": 7490649437.0
+      }
+    },
+    "q8": {
+      "name": "q8",
+      "element_type": "BasicTransmonElement",
+      "reset": {
+        "name": "reset",
+        "duration": 1e-6
+      },
+      "rxy": {
+        "name": "rxy",
+        "amp180": 0.5,
+        "beta": 0.0,
+        "duration": 3.2e-8
+      },
+      "measure": {
+        "name": "measure",
+        "pulse_type": "SquarePulse",
+        "pulse_amp": 0.05,
+        "pulse_duration": 1e-6,
+        "acq_label": 0,
+        "acq_delay": 2e-7,
+        "integration_time": 1e-6,
+        "reset_clock_phase": true,
+        "acq_weights_a": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weights_b": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weight_type": "SSB",
+        "acq_rotation": 0.0,
+        "acq_threshold": 0.0,
+        "num_points": 1
+      },
+      "pulse_compensation": {
+        "name": "pulse_compensation",
+        "max_compensation_amp": NaN,
+        "time_grid": NaN,
+        "sampling_rate": NaN,
+        "min_duration": NaN
+      },
+      "ports": {
+        "name": "ports",
+        "microwave": "q8:mw",
+        "flux": "q8:fl",
+        "readout": "q8:res"
+      },
+      "clock_freqs": {
+        "name": "clock_freqs",
+        "f01": 5444304931.0,
+        "f12": 5215101840.0,
+        "readout": 7490649437.0
+      }
+    },
+    "q9": {
+      "name": "q9",
+      "element_type": "BasicTransmonElement",
+      "reset": {
+        "name": "reset",
+        "duration": 1e-6
+      },
+      "rxy": {
+        "name": "rxy",
+        "amp180": 0.5,
+        "beta": 0.0,
+        "duration": 3.2e-8
+      },
+      "measure": {
+        "name": "measure",
+        "pulse_type": "SquarePulse",
+        "pulse_amp": 0.05,
+        "pulse_duration": 1e-6,
+        "acq_label": 0,
+        "acq_delay": 2e-7,
+        "integration_time": 1e-6,
+        "reset_clock_phase": true,
+        "acq_weights_a": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weights_b": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weight_type": "SSB",
+        "acq_rotation": 0.0,
+        "acq_threshold": 0.0,
+        "num_points": 1
+      },
+      "pulse_compensation": {
+        "name": "pulse_compensation",
+        "max_compensation_amp": NaN,
+        "time_grid": NaN,
+        "sampling_rate": NaN,
+        "min_duration": NaN
+      },
+      "ports": {
+        "name": "ports",
+        "microwave": "q9:mw",
+        "flux": "q9:fl",
+        "readout": "q9:res"
+      },
+      "clock_freqs": {
+        "name": "clock_freqs",
+        "f01": 5444304931.0,
+        "f12": 5215101840.0,
+        "readout": 7490649437.0
+      }
+    },
+    "q10": {
+      "name": "q10",
+      "element_type": "BasicTransmonElement",
+      "reset": {
+        "name": "reset",
+        "duration": 0.0001
+      },
+      "rxy": {
+        "name": "rxy",
+        "amp180": 0.37144832991573307,
+        "beta": 0.0,
+        "duration": 3e-8
+      },
+      "measure": {
+        "name": "measure",
+        "pulse_type": "SquarePulse",
+        "pulse_amp": 0.0595,
+        "pulse_duration": 0.00002,
+        "acq_label": 0,
+        "acq_delay": 2e-7,
+        "integration_time": 0.00002,
+        "reset_clock_phase": true,
+        "acq_weights_a": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weights_b": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weight_type": "SSB",
+        "acq_rotation": 355.9494622402541,
+        "acq_threshold": -0.0000752471671707046,
+        "num_points": 1
+      },
+      "pulse_compensation": {
+        "name": "pulse_compensation",
+        "max_compensation_amp": NaN,
+        "time_grid": NaN,
+        "sampling_rate": NaN,
+        "min_duration": NaN
+      },
+      "ports": {
+        "name": "ports",
+        "microwave": "q10:mw",
+        "flux": "q10:fl",
+        "readout": "q10:res"
+      },
+      "clock_freqs": {
+        "name": "clock_freqs",
+        "f01": 3526632082.0027404,
+        "f12": 3349524961.0,
+        "readout": 6059553955.109739
+      }
+    },
+    "qw": {
+      "name": "qw",
+      "element_type": "BasicTransmonElement",
+      "reset": {
+        "name": "reset",
+        "duration": 1e-6
+      },
+      "rxy": {
+        "name": "rxy",
+        "amp180": 0.5,
+        "beta": 0.0,
+        "duration": 5e-8
+      },
+      "measure": {
+        "name": "measure",
+        "pulse_type": "SquarePulse",
+        "pulse_amp": 0.05,
+        "pulse_duration": 1e-6,
+        "acq_label": 0,
+        "acq_delay": 2e-7,
+        "integration_time": 1e-6,
+        "reset_clock_phase": true,
+        "acq_weights_a": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weights_b": {
+          "data": "",
+          "shape": [
+            0
+          ],
+          "dtype": "float64"
+        },
+        "acq_weight_type": "SSB",
+        "acq_rotation": 0.0,
+        "acq_threshold": 0.0,
+        "num_points": 1
+      },
+      "pulse_compensation": {
+        "name": "pulse_compensation",
+        "max_compensation_amp": NaN,
+        "time_grid": NaN,
+        "sampling_rate": NaN,
+        "min_duration": NaN
+      },
+      "ports": {
+        "name": "ports",
+        "microwave": "qw:mw",
+        "flux": "qw:fl",
+        "readout": "qw:res"
+      },
+      "clock_freqs": {
+        "name": "clock_freqs",
+        "f01": 5444304931.0,
+        "f12": 5215101840.0,
+        "readout": 7490649437.0
+      }
+    }
+  },
+  "edges": {},
+  "cfg_sched_repetitions": 1024,
+  "keep_original_schedule": true,
+  "hardware_config": {
+    "config_type": "QbloxHardwareCompilationConfig",
+    "hardware_description": {
+      "cluster_A": {
+        "instrument_type": "Cluster",
+        "ref": "internal",
+        "sequence_to_file": false,
+        "modules": {
+          "2": {
+            "sequence_to_file": false,
+            "sequencer_isa_version": [
+              2,
+              1
+            ],
+            "instrument_type": "QCM",
+            "complex_output_0": null,
+            "complex_output_1": null,
+            "real_output_0": null,
+            "real_output_1": null,
+            "real_output_2": null,
+            "real_output_3": null,
+            "digital_output_0": null,
+            "digital_output_1": null,
+            "digital_output_2": null,
+            "digital_output_3": null
+          },
+          "4": {
+            "sequence_to_file": false,
+            "sequencer_isa_version": [
+              2,
+              1
+            ],
+            "instrument_type": "QCM",
+            "complex_output_0": null,
+            "complex_output_1": null,
+            "real_output_0": null,
+            "real_output_1": null,
+            "real_output_2": null,
+            "real_output_3": null,
+            "digital_output_0": null,
+            "digital_output_1": null,
+            "digital_output_2": null,
+            "digital_output_3": null
+          },
+          "6": {
+            "sequence_to_file": false,
+            "sequencer_isa_version": [
+              2,
+              1
+            ],
+            "instrument_type": "QCM",
+            "complex_output_0": null,
+            "complex_output_1": null,
+            "real_output_0": null,
+            "real_output_1": null,
+            "real_output_2": null,
+            "real_output_3": null,
+            "digital_output_0": null,
+            "digital_output_1": null,
+            "digital_output_2": null,
+            "digital_output_3": null
+          },
+          "8": {
+            "sequence_to_file": false,
+            "sequencer_isa_version": [
+              2,
+              1
+            ],
+            "instrument_type": "QCM",
+            "complex_output_0": null,
+            "complex_output_1": null,
+            "real_output_0": null,
+            "real_output_1": null,
+            "real_output_2": null,
+            "real_output_3": null,
+            "digital_output_0": null,
+            "digital_output_1": null,
+            "digital_output_2": null,
+            "digital_output_3": null
+          },
+          "9": {
+            "sequence_to_file": false,
+            "sequencer_isa_version": [
+              2,
+              1
+            ],
+            "instrument_type": "QCM",
+            "complex_output_0": null,
+            "complex_output_1": null,
+            "real_output_0": null,
+            "real_output_1": null,
+            "real_output_2": null,
+            "real_output_3": null,
+            "digital_output_0": null,
+            "digital_output_1": null,
+            "digital_output_2": null,
+            "digital_output_3": null
+          },
+          "10": {
+            "sequence_to_file": false,
+            "sequencer_isa_version": [
+              2,
+              1
+            ],
+            "rf_output_on": true,
+            "instrument_type": "QCM_RF",
+            "complex_output_0": null,
+            "complex_output_1": null,
+            "digital_output_0": null,
+            "digital_output_1": null
+          },
+          "12": {
+            "sequence_to_file": false,
+            "sequencer_isa_version": [
+              2,
+              1
+            ],
+            "rf_output_on": true,
+            "instrument_type": "QCM_RF",
+            "complex_output_0": null,
+            "complex_output_1": null,
+            "digital_output_0": null,
+            "digital_output_1": null
+          },
+          "14": {
+            "sequence_to_file": false,
+            "sequencer_isa_version": [
+              2,
+              1
+            ],
+            "rf_output_on": true,
+            "instrument_type": "QCM_RF",
+            "complex_output_0": null,
+            "complex_output_1": null,
+            "digital_output_0": null,
+            "digital_output_1": null
+          },
+          "16": {
+            "sequence_to_file": false,
+            "sequencer_isa_version": [
+              2,
+              1
+            ],
+            "rf_output_on": true,
+            "instrument_type": "QCM_RF",
+            "complex_output_0": null,
+            "complex_output_1": null,
+            "digital_output_0": null,
+            "digital_output_1": null
+          },
+          "17": {
+            "sequence_to_file": false,
+            "sequencer_isa_version": [
+              2,
+              1
+            ],
+            "rf_output_on": true,
+            "instrument_type": "QCM_RF",
+            "complex_output_0": null,
+            "complex_output_1": null,
+            "digital_output_0": null,
+            "digital_output_1": null
+          },
+          "18": {
+            "sequence_to_file": false,
+            "sequencer_isa_version": [
+              2,
+              1
+            ],
+            "rf_output_on": true,
+            "instrument_type": "QCM_RF",
+            "complex_output_0": null,
+            "complex_output_1": null,
+            "digital_output_0": null,
+            "digital_output_1": null
+          },
+          "19": {
+            "sequence_to_file": false,
+            "sequencer_isa_version": [
+              2,
+              1
+            ],
+            "rf_output_on": true,
+            "instrument_type": "QRM_RF",
+            "complex_output_0": null,
+            "complex_input_0": null,
+            "digital_output_0": null,
+            "digital_output_1": null
+          },
+          "20": {
+            "sequence_to_file": false,
+            "sequencer_isa_version": [
+              2,
+              1
+            ],
+            "rf_output_on": true,
+            "instrument_type": "QRM_RF",
+            "complex_output_0": null,
+            "complex_input_0": null,
+            "digital_output_0": null,
+            "digital_output_1": null
+          }
+        },
+        "ip": "10.21.19.201",
+        "sync_on_external_trigger": null,
+        "port": 9613,
+        "module_base_port": 25300
+      }
+    },
+    "hardware_options": {
+      "crosstalk": null,
+      "latency_corrections": null,
+      "distortion_corrections": null,
+      "modulation_frequencies": {
+        "q1:mw-q1.01": {
+          "interm_freq": null,
+          "lo_freq": 3600000000.0
+        },
+        "q2:mw-q2.01": {
+          "interm_freq": null,
+          "lo_freq": 3600000000.0
+        },
+        "q3:mw-q3.01": {
+          "interm_freq": null,
+          "lo_freq": 3000000000.0
+        },
+        "q4:mw-q4.01": {
+          "interm_freq": null,
+          "lo_freq": 3000000000.0
+        },
+        "q5:mw-q5.01": {
+          "interm_freq": null,
+          "lo_freq": 3000000000.0
+        },
+        "q6:mw-q6.01": {
+          "interm_freq": null,
+          "lo_freq": 3000000000.0
+        },
+        "q7:mw-q7.01": {
+          "interm_freq": null,
+          "lo_freq": 3000000000.0
+        },
+        "q8:mw-q8.01": {
+          "interm_freq": null,
+          "lo_freq": 3000000000.0
+        },
+        "q9:mw-q9.01": {
+          "interm_freq": null,
+          "lo_freq": 3000000000.0
+        },
+        "q10:mw-q10.01": {
+          "interm_freq": null,
+          "lo_freq": 3500000000.0
+        },
+        "qw:mw-qw.01": {
+          "interm_freq": null,
+          "lo_freq": 3000000000.0
+        },
+        "q1:res-q1.ro": {
+          "interm_freq": null,
+          "lo_freq": 6000000000.0
+        },
+        "q2:res-q2.ro": {
+          "interm_freq": null,
+          "lo_freq": 6000000000.0
+        },
+        "q3:res-q3.ro": {
+          "interm_freq": null,
+          "lo_freq": 6000000000.0
+        },
+        "q4:res-q4.ro": {
+          "interm_freq": null,
+          "lo_freq": 6000000000.0
+        },
+        "q5:res-q5.ro": {
+          "interm_freq": null,
+          "lo_freq": 6000000000.0
+        },
+        "q6:res-q6.ro": {
+          "interm_freq": null,
+          "lo_freq": 6000000000.0
+        },
+        "q7:res-q7.ro": {
+          "interm_freq": null,
+          "lo_freq": 6000000000.0
+        },
+        "q8:res-q8.ro": {
+          "interm_freq": null,
+          "lo_freq": 6000000000.0
+        },
+        "q9:res-q9.ro": {
+          "interm_freq": null,
+          "lo_freq": 6000000000.0
+        },
+        "q10:res-q10.ro": {
+          "interm_freq": null,
+          "lo_freq": 6000000000.0
+        },
+        "qw:res-qw.ro": {
+          "interm_freq": null,
+          "lo_freq": 6000000000.0
+        }
+      },
+      "mixer_corrections": null,
+      "input_gain": {
+        "q1:res-q1.ro": {
+          "gain_I": 2,
+          "gain_Q": 3
+        },
+        "q2:res-q2.ro": {
+          "gain_I": 2,
+          "gain_Q": 3
+        },
+        "q3:res-q3.ro": {
+          "gain_I": 2,
+          "gain_Q": 3
+        },
+        "q4:res-q4.ro": {
+          "gain_I": 2,
+          "gain_Q": 3
+        },
+        "q5:res-q5.ro": {
+          "gain_I": 2,
+          "gain_Q": 3
+        },
+        "q6:res-q6.ro": {
+          "gain_I": 2,
+          "gain_Q": 3
+        },
+        "q7:res-q7.ro": {
+          "gain_I": 2,
+          "gain_Q": 3
+        },
+        "q8:res-q8.ro": {
+          "gain_I": 2,
+          "gain_Q": 3
+        },
+        "q9:res-q9.ro": {
+          "gain_I": 2,
+          "gain_Q": 3
+        },
+        "q10:res-q10.ro": {
+          "gain_I": 2,
+          "gain_Q": 3
+        },
+        "qw:res-qw.ro": {
+          "gain_I": 2,
+          "gain_Q": 3
+        }
+      },
+      "output_att": {
+        "q1:mw-q1.01": 0.0,
+        "q2:mw-q2.01": 0.0,
+        "q3:mw-q3.01": 0.0,
+        "q4:mw-q4.01": 0.0,
+        "q5:mw-q5.01": 0.0,
+        "q6:mw-q6.01": 0.0,
+        "q7:mw-q7.01": 0.0,
+        "q8:mw-q8.01": 0.0,
+        "q9:mw-q9.01": 0.0,
+        "q10:mw-q10.01": 0.0,
+        "qw:mw-qw.01": 0.0,
+        "q1:res-q1.ro": 10.0,
+        "q2:res-q2.ro": 10.0,
+        "q3:res-q3.ro": 10.0,
+        "q4:res-q4.ro": 10.0,
+        "q5:res-q5.ro": 10.0,
+        "q6:res-q6.ro": 10.0,
+        "q7:res-q7.ro": 10.0,
+        "q8:res-q8.ro": 10.0,
+        "q9:res-q9.ro": 10.0,
+        "q10:res-q10.ro": 10.0,
+        "qw:res-qw.ro": 10.0
+      },
+      "input_att": {
+        "q1:res-q1.ro": 10.0,
+        "q2:res-q2.ro": 10.0,
+        "q3:res-q3.ro": 10.0,
+        "q4:res-q4.ro": 10.0,
+        "q5:res-q5.ro": 10.0,
+        "q6:res-q6.ro": 10.0,
+        "q7:res-q7.ro": 10.0,
+        "q8:res-q8.ro": 10.0,
+        "q9:res-q9.ro": 10.0,
+        "q10:res-q10.ro": 10.0,
+        "qw:res-qw.ro": 10.0
+      },
+      "sequencer_options": null,
+      "net_zero_pulse_parameters": null,
+      "digitization_thresholds": null,
+      "source_mode": null,
+      "measure_mode": null,
+      "slew_rate": null,
+      "integration_time": null,
+      "safe_voltage_range": null
+    },
+    "connectivity": {
+      "graph": [
+        [
+          "cluster_A.module19.complex_output_0",
+          "q1:res"
+        ],
+        [
+          "cluster_A.module19.complex_output_0",
+          "q2:res"
+        ],
+        [
+          "cluster_A.module19.complex_output_0",
+          "q3:res"
+        ],
+        [
+          "cluster_A.module19.complex_output_0",
+          "q4:res"
+        ],
+        [
+          "cluster_A.module19.complex_output_0",
+          "q5:res"
+        ],
+        [
+          "cluster_A.module19.complex_output_0",
+          "qw:res"
+        ],
+        [
+          "q1:res",
+          "cluster_A.module19.complex_input_0"
+        ],
+        [
+          "q2:res",
+          "cluster_A.module19.complex_input_0"
+        ],
+        [
+          "q3:res",
+          "cluster_A.module19.complex_input_0"
+        ],
+        [
+          "q4:res",
+          "cluster_A.module19.complex_input_0"
+        ],
+        [
+          "q5:res",
+          "cluster_A.module19.complex_input_0"
+        ],
+        [
+          "qw:res",
+          "cluster_A.module19.complex_input_0"
+        ],
+        [
+          "cluster_A.module20.complex_output_0",
+          "q6:res"
+        ],
+        [
+          "cluster_A.module20.complex_output_0",
+          "q7:res"
+        ],
+        [
+          "cluster_A.module20.complex_output_0",
+          "q8:res"
+        ],
+        [
+          "cluster_A.module20.complex_output_0",
+          "q9:res"
+        ],
+        [
+          "cluster_A.module20.complex_output_0",
+          "q10:res"
+        ],
+        [
+          "q6:res",
+          "cluster_A.module20.complex_input_0"
+        ],
+        [
+          "q7:res",
+          "cluster_A.module20.complex_input_0"
+        ],
+        [
+          "q8:res",
+          "cluster_A.module20.complex_input_0"
+        ],
+        [
+          "q9:res",
+          "cluster_A.module20.complex_input_0"
+        ],
+        [
+          "q10:res",
+          "cluster_A.module20.complex_input_0"
+        ],
+        [
+          "cluster_A.module10.complex_output_0",
+          "q1:mw"
+        ],
+        [
+          "cluster_A.module10.complex_output_1",
+          "q2:mw"
+        ],
+        [
+          "cluster_A.module12.complex_output_0",
+          "q3:mw"
+        ],
+        [
+          "cluster_A.module12.complex_output_1",
+          "q4:mw"
+        ],
+        [
+          "cluster_A.module14.complex_output_0",
+          "q5:mw"
+        ],
+        [
+          "cluster_A.module14.complex_output_1",
+          "q6:mw"
+        ],
+        [
+          "cluster_A.module16.complex_output_0",
+          "q7:mw"
+        ],
+        [
+          "cluster_A.module16.complex_output_1",
+          "q8:mw"
+        ],
+        [
+          "cluster_A.module17.complex_output_0",
+          "q9:mw"
+        ],
+        [
+          "cluster_A.module17.complex_output_1",
+          "q10:mw"
+        ],
+        [
+          "cluster_A.module18.complex_output_0",
+          "qw:mw"
+        ],
+        [
+          "cluster_A.module2.real_output_0",
+          "q1:fl"
+        ],
+        [
+          "cluster_A.module2.real_output_1",
+          "cpl1_2:fl"
+        ],
+        [
+          "cluster_A.module2.real_output_2",
+          "q2:fl"
+        ],
+        [
+          "cluster_A.module2.real_output_3",
+          "cpl2_3:fl"
+        ],
+        [
+          "cluster_A.module4.real_output_0",
+          "q3:fl"
+        ],
+        [
+          "cluster_A.module4.real_output_1",
+          "cpl3_4:fl"
+        ],
+        [
+          "cluster_A.module4.real_output_2",
+          "q4:fl"
+        ],
+        [
+          "cluster_A.module4.real_output_3",
+          "cpl4_5:fl"
+        ],
+        [
+          "cluster_A.module6.real_output_0",
+          "q5:fl"
+        ],
+        [
+          "cluster_A.module6.real_output_1",
+          "cpl5_6:fl"
+        ],
+        [
+          "cluster_A.module6.real_output_2",
+          "q6:fl"
+        ],
+        [
+          "cluster_A.module6.real_output_3",
+          "cpl6_7:fl"
+        ],
+        [
+          "cluster_A.module8.real_output_0",
+          "q7:fl"
+        ],
+        [
+          "cluster_A.module8.real_output_1",
+          "cpl7_8:fl"
+        ],
+        [
+          "cluster_A.module8.real_output_2",
+          "q8:fl"
+        ],
+        [
+          "cluster_A.module8.real_output_3",
+          "cpl8_9:fl"
+        ],
+        [
+          "cluster_A.module9.real_output_0",
+          "q9:fl"
+        ],
+        [
+          "cluster_A.module9.real_output_1",
+          "cpl9_10:fl"
+        ],
+        [
+          "cluster_A.module9.real_output_2",
+          "q10:fl"
+        ]
+      ]
+    },
+    "compilation_passes": [
+      {
+        "name": "expand_net_zero_pulses",
+        "compilation_func": "qblox_scheduler.backends.qblox_backend.expand_net_zero_pulses"
+      },
+      {
+        "name": "switch_outputs",
+        "compilation_func": "qblox_scheduler.backends.qblox.switch_outputs.switch_outputs"
+      },
+      {
+        "name": "crosstalk_compensation",
+        "compilation_func": "qblox_scheduler.backends.qblox.crosstalk_compensation.crosstalk_compensation"
+      },
+      {
+        "name": "stack_pulses",
+        "compilation_func": "qblox_scheduler.backends.qblox.stack_pulses.stack_pulses"
+      },
+      {
+        "name": "compile_long_pulses_to_awg_offsets",
+        "compilation_func": "qblox_scheduler.backends.qblox_backend.compile_long_pulses_to_awg_offsets"
+      },
+      {
+        "name": "qblox_compile_conditional_playback",
+        "compilation_func": "qblox_scheduler.backends.qblox_backend.compile_conditional_playback"
+      },
+      {
+        "name": "add_portclocks_to_assigns",
+        "compilation_func": "qblox_scheduler.backends.qblox_backend.add_portclocks_to_assigns"
+      },
+      {
+        "name": "qblox_hardware_compile",
+        "compilation_func": "qblox_scheduler.backends.qblox_backend.hardware_compile"
+      }
+    ],
+    "compiler_options": {
+      "retime_allowed": false
+    },
+    "version": "0.1"
+  },
+  "scheduling_strategy": "asap"
+}

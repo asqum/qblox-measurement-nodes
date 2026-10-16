@@ -7,16 +7,16 @@ from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
-from dependencies.randomized_benchmarking.clifford_group import CZ as CZ_PTM
-from dependencies.randomized_benchmarking.clifford_group import ZX_01 as ZX_PTM
-from dependencies.randomized_benchmarking.clifford_group import (
+from qblox_lab.experiments.dependencies.randomized_benchmarking.clifford_group import CZ as CZ_PTM
+from qblox_lab.experiments.dependencies.randomized_benchmarking.clifford_group import ZX_01 as ZX_PTM
+from qblox_lab.experiments.dependencies.randomized_benchmarking.clifford_group import (
     Clifford,
     SingleQubitClifford,
     TwoQubitCliffordCZ,
     TwoQubitCliffordZX,
     common_cliffords,
 )
-from dependencies.randomized_benchmarking.randomized_benchmarking import (
+from qblox_lab.experiments.dependencies.randomized_benchmarking.randomized_benchmarking import (
     randomized_benchmarking_sequence,
 )
 from quantify_core.visualization.mpl_plotting import (
@@ -25,7 +25,7 @@ from quantify_core.visualization.mpl_plotting import (
 from scipy.optimize import curve_fit
 
 from qblox_scheduler import Schedule
-from qblox_scheduler.analysis.single_qubit_timedomain import SingleQubitTimedomainAnalysis
+from qblox_applications.qblox_scheduler.analysis.single_qubit_timedomain import SingleQubitTimedomainAnalysis
 from qblox_scheduler.backends.qblox.constants import MIN_TIME_BETWEEN_OPERATIONS
 from qblox_scheduler.operations import CZ, X90, Y90, IdlePulse, Measure, Reset, Rxy, X, Y
 from qblox_scheduler.operations.expressions import DType
@@ -125,16 +125,16 @@ def randomized_benchmarking_schedule(
                         sched.add(gate_sched)
 
                 sched.add(
-                    Measure(qubit_names[-1], coords={"seed": seed, "length": m}, acq_channel="S_21")
+                    Measure(qubit_names[-1], coords={"seed": seed, "length": m}, acq_label="S_21")
                 )
 
             # Calibration points measured by preparing ground and excited states.
             sched.add(Reset(qubit_names[-1]))
-            sched.add(Measure(qubit_names[-1], acq_channel="calibration"))
+            sched.add(Measure(qubit_names[-1], acq_label="calibration"))
             reset_cal_1 = sched.add(Reset(qubit_names[-1]))
             for qubit_name in qubit_names:
                 sched.add(X(qubit_name), ref_op=reset_cal_1, rel_time=0)
-            sched.add(Measure(qubit_names[-1], acq_channel="calibration"))
+            sched.add(Measure(qubit_names[-1], acq_label="calibration"))
 
     return sched
 

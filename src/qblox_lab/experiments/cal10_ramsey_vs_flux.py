@@ -49,10 +49,10 @@ from typing import Any, Literal, Mapping, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
-from qblox_scheduler import HardwareAgent, Schedule
-from qblox_scheduler.analysis.fitting_models import exp_damp_osc_func
-from qblox_scheduler.analysis.single_qubit_timedomain import RamseyAnalysis
-from qblox_scheduler.experiments import SetHardwareOption, SetParameter
+from qblox_scheduler import HardwareAgent, Schedule, SetClockFrequency
+from qblox_applications.qblox_scheduler.analysis.fitting_models import exp_damp_osc_func
+from qblox_applications.qblox_scheduler.analysis.single_qubit_timedomain import BaseRamseyAnalysis
+from qblox_scheduler.segments import SetHardwareOption, SetParameter
 from qblox_scheduler.operations import (
     ConditionalReset,
     IdlePulse,
@@ -92,7 +92,7 @@ class RamseyVsFluxResult:
     freq_offset: float
     quad_term: float
     success: bool
-    analysis_objects: tuple[RamseyAnalysis, ...]
+    analysis_objects: tuple[BaseRamseyAnalysis, ...]
 
 
 class RamseyVsFlux:
@@ -152,7 +152,7 @@ class RamseyVsFlux:
         """Reset a qubit: fixed-duration thermal wait, or measurement-based active reset."""
         if reset_type == "active":
             schedule.add(
-                ConditionalReset(qubit_name, acq_channel=acq_channel or f"cond_{qubit_name}")
+                ConditionalReset(qubit_name, acq_label=acq_channel or f"cond_{qubit_name}")
             )
         else:
             schedule.add(Reset(qubit_name))
@@ -328,6 +328,14 @@ class RamseyVsFlux:
                         # *is* the Ramsey free-evolution window itself (right
                         # after the first X90, back to zero before the
                         # second), settle buffers bracketing its edges.
+                        # Implementing a phase kick:
+                        # Detune the qubit's clock by the required frequency detuning
+                        schedule.add(
+                            SetClockFrequency(
+                                clock=drive_clock,
+                                frequency=qubit.clock_freqs.f01 + frequency_detuning,
+                            )
+                        )
                         schedule.add(IdlePulse(pulse_settle_time))
                         schedule.add(
                             SquarePulse(
@@ -341,14 +349,14 @@ class RamseyVsFlux:
                         # Virtual Z gate sized to the *full* elapsed gap between
                         # the two X90 pulses (settle buffers included), unlike
                         # the QM reference which uses `delay` alone.
-                        total_idle_time = delay + 2 * pulse_settle_time
-                        virtual_detuning_phase = total_idle_time * (
-                            frequency_detuning * 360.0
-                        )
+
+                        # After a time tau, reset the qubit clock frequency to its original value
                         schedule.add(
-                            ShiftClockPhase(
-                                phase_shift=virtual_detuning_phase, clock=drive_clock
-                            )
+                            SetClockFrequency(
+                                clock=drive_clock,
+                                frequency=qubit.clock_freqs.f01,
+                            ),
+                            rel_time=None,
                         )
                         schedule.add(X90(qubit.name))
                         schedule.add(IdlePulse(4e-9))
@@ -359,7 +367,7 @@ class RamseyVsFlux:
                                     f"delay_{qubit.name}": delay,
                                     f"flux_pulse_{qubit.name}": flux_pulse_amplitude,
                                 },
-                                acq_channel=f"S21_{qubit.name}",
+                                acq_label=f"S21_{qubit.name}",
                             )
                         )
                         schedule.add(ResetClockPhase(clock=drive_clock))
@@ -628,7 +636,7 @@ class RamseyVsFlux:
             fitted_detuning = np.full(unique_flux.size, np.nan)
             t2_star_per_flux = np.full(unique_flux.size, np.nan)
             fit_success = np.zeros(unique_flux.size, dtype=bool)
-            analysis_objects: list[RamseyAnalysis] = []
+            analysis_objects: list[BaseRamseyAnalysis] = []
 
             for index in range(unique_flux.size):
                 analysis_dataset = Dataset(
@@ -647,7 +655,7 @@ class RamseyVsFlux:
                     name="Ramsey delay", long_name="Ramsey delay", units="s"
                 )
 
-                analysis_object = RamseyAnalysis(dataset=analysis_dataset, plot_figures=False)
+                analysis_object = BaseRamseyAnalysis(dataset=analysis_dataset, plot_figures=False)
                 analysis_object.artificial_detuning = frequency_detuning
                 analysis_object.qubit_frequency = None
                 analysis_object.calibration_points = False

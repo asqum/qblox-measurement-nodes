@@ -3,19 +3,36 @@ import xarray as xr
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
-from single_qubit_experiment_helpers.experiment import SingleQubitExperiment
-from custom_elements import FluxTunableTransmonElement
+from pathlib import Path
+from typing import Any, Literal, Mapping, Sequence
 
+from dataclasses import dataclass
 # Qblox Scheduler Imports
-from qblox_scheduler import Schedule
-from qblox_scheduler.operations import Measure, Reset, X, X90, Y, Rxy, VoltageOffset, IdlePulse, ShiftClockPhase
+from qblox_scheduler import Schedule, HardwareAgent
+from qblox_scheduler.operations import Measure, Reset, X, X90, Y, Rxy, VoltageOffset, IdlePulse, ShiftClockPhase, ConditionalReset
 from qblox_scheduler.operations.expressions import DType
 from qblox_scheduler.operations.loop_domains import arange, linspace
+from xarray import Dataset
+from qblox_lab.config.hardware import apply_flux_config, load_flux_config
 
 TIMEOUT_TIME = 600
 FIGURE_SIZE = (8, 5)
+@dataclass(frozen=True)
+class DragCalibrationResult:
+    """Calibrate Drag pulse for one qubit."""
 
-class MultiplexedDRAGCalibration(SingleQubitExperiment):
+    T1Analysisbeta: np.ndarray
+    transmission: np.ndarray
+    select_beta: float
+    success: bool
+    optimal_beta: float
+    unique_betas: np.ndarray
+    y_data: dict[int, np.ndarray]
+    polys: dict[int, np.ndarray]
+    old_beta: float
+     
+
+class MultiplexedDRAGCalibration:
     """
     DRAG Parameter Calibration (3-Line Symmetric Equator Method).
     Sweeps the DRAG beta coefficient and applies three sequences:
@@ -24,128 +41,234 @@ class MultiplexedDRAGCalibration(SingleQubitExperiment):
       Seq 2: X90 -> (X180)^N  (Reference Baseline)
     The optimal beta is the mutual intersection point of all three lines.
     """
-    def __init__(self, qubits):
-        super().__init__(qubit=qubits[0]) 
-        self.qubits = qubits
-        self.dataset = None
-        self.analyses = {}
+    def __init__(
+        self,
+        hardware_agent: HardwareAgent,
+        qubits: Sequence[str],
+        flux_config: Mapping[str, Any] | str | Path | None = None,
+    ) -> None:
+        if not qubits:
+            raise ValueError("At least one qubit name is required.")
+        if len(set(qubits)) != len(qubits):
+            raise ValueError("Qubit names must be unique.")
+
+        self.hardware_agent = hardware_agent
+        self.qubit_names = tuple(qubits)
+        self.qubits = tuple(
+            hardware_agent.quantum_device.get_element(name) for name in self.qubit_names
+        )
+        self.flux_config = (
+            None if flux_config is None else load_flux_config(flux_config)
+        )
+        self.beta: tuple[float, ...] = ()
+        self.schedule: Schedule | None = None
+        self.dataset: Dataset | None = None
+        self.results: dict[str, Any] = {}
+        self.figures: dict[str, Any] = {}
+
+    @staticmethod
+    def _drive_port_clock(qubit: Any) -> str:
+        return f"{qubit.ports.microwave}-{qubit.name}.01"
+
+    @staticmethod
+    def _readout_port_clock(qubit: Any) -> str:
+        return f"{qubit.ports.readout}-{qubit.name}.ro"
+
+    @staticmethod
+    def _add_reset(
+        schedule: Schedule,
+        qubit_name: str,
+        reset_type: Literal["thermal", "active"],
+        acq_channel: str | None = None,
+    ) -> None:
+        """Reset a qubit: fixed-duration thermal wait, or measurement-based active reset."""
+        if reset_type == "active":
+            schedule.add(
+                ConditionalReset(qubit_name, acq_label=acq_channel or f"cond_{qubit_name}")
+            )
+        else:
+            schedule.add(Reset(qubit_name))
+    def _apply_idle_flux_config(self) -> None:
+        """Ramp every flux-config qubit to its idle bias before pulsing.
+
+        Applies to *all* qubits listed in the flux config, not just the ones
+        being measured: the swept qubits need their own idle bias in place
+        before the schedule's ``SquarePulse`` flux pulses relative to it, and
+        every unmeasured qubit must be parked and left untouched.
+        """
+        if self.flux_config is None:
+            return
+        apply_flux_config(self.hardware_agent, self.flux_config)
 
     # -------------------------------------------------------------------------
     # SCHEDULE GENERATION
     # -------------------------------------------------------------------------
-    @staticmethod
-    def _create_single_qubit_schedule(
-        qubit, beta_start: float, beta_stop: float, beta_npoints: int, 
-        pulse_repetitions: int, repetitions: int
+    def build_schedule(
+        self, 
+        *,
+        repetitions: int,
+        reset_type: Literal["thermal", "active"] = "thermal",
+        beta_start: float, 
+        beta_stop: float, 
+        beta_npoints: int, 
+        pulse_repetitions: int, 
     ) -> Schedule:
-        sched = Schedule(f"drag_cal_{qubit.name}")
         
         if pulse_repetitions % 2 == 0:
             raise ValueError("pulse_repetitions must be an odd number (1, 3, 5...) to land on the equator.")
-
-        # 1. Set the flux offset voltage to the sweet spot
-        sched.add(VoltageOffset(qubit.flux_params.sweet_spot, 0, port=qubit.ports.flux))
-        sched.add(IdlePulse(10e-6))  # Wait for flux to settle
+        
+        schedule = Schedule("drag_calibration")
+        measurement_schedule = Schedule("drag_calibration_measurement")
+        parallel_reference = None
 
         # Use a standard Numpy array to guarantee primitive floats!
         beta_sweep = np.linspace(beta_start, beta_stop, beta_npoints)
-        
-        # The repetitions loop stays on the hardware
-        with sched.loop(arange(0, repetitions, 1, DType.NUMBER)):
-            
-            # PURE PYTHON LOOP: Bypasses compiler constraints for complex pulse arguments
-            for b in beta_sweep:
-                beta_val = float(b)  # Force absolute primitive float
+        for qubit in self.qubits:
+            drive_port_clock = self._drive_port_clock(qubit)
+            readout_port_clock = self._readout_port_clock(qubit)
+            # The repetitions loop stays on the hardware
+            qubit_schedule = Schedule(f"drag_calibration_{qubit.name}")
+            with qubit_schedule.loop(arange(0, repetitions, 1, DType.NUMBER)):
                 
-                # ==========================================
-                # Sequence 0: X90 -> (Y180)^N
-                # ==========================================
-                sched.add(Reset(qubit.name))
-                sched.add(X90(qubit=qubit.name, beta=beta_val))
-                for _ in range(pulse_repetitions):
-                    sched.add(Y(qubit=qubit.name, beta=beta_val))
-                
-                sched.add(Measure(
-                    qubit.name, coords={f"beta_{qubit.name}": beta_val, f"seq_idx_{qubit.name}": 0}, 
-                    acq_channel=f"S_21_{qubit.name}"
-                ))
-                sched.add(IdlePulse(1e-6)) # Buffer to prevent FIFO crash
+                # PURE PYTHON LOOP: Bypasses compiler constraints for complex pulse arguments
+                with qubit_schedule.loop(
+                    linspace(
+                        beta_sweep[0],
+                        beta_sweep[-1],
+                        beta_npoints,
+                        dtype=DType.DRAG_BETA,
+                    ) 
+                ) as beta_val:
+                    #beta_val = float(b)  # Force absolute primitive float
+                    
+                    # ==========================================
+                    # Sequence 0: X90 -> (Y180)^N
+                    # ==========================================
+                    self._add_reset(qubit_schedule, qubit.name, reset_type)
+                    qubit_schedule.add(X90(qubit=qubit.name, beta=beta_val))
+                    for _ in range(pulse_repetitions):
+                        qubit_schedule.add(Y(qubit=qubit.name, beta=beta_val))
+                    
+                    qubit_schedule.add(
+                        Measure(
+                            qubit.name, 
+                            coords={f"beta_{qubit.name}": beta_val, 
+                                    f"seq_idx_{qubit.name}": 0}, 
+                            acq_label=f"S_21_{qubit.name}"
+                        )
+                    )
+                    qubit_schedule.add(IdlePulse(4e-9)) # Buffer to prevent FIFO crash
 
-                # ==========================================
-                # Sequence 1: X90 -> (-Y180)^N
-                # ==========================================
-                sched.add(Reset(qubit.name))
-                sched.add(X90(qubit=qubit.name, beta=beta_val))
-                for _ in range(pulse_repetitions):
-                    sched.add(Rxy(theta=180.0, phi=270.0, qubit=qubit.name, beta=beta_val))
-                
-                sched.add(Measure(
-                    qubit.name, coords={f"beta_{qubit.name}": beta_val, f"seq_idx_{qubit.name}": 1}, 
-                    acq_channel=f"S_21_{qubit.name}"
-                ))
-                sched.add(IdlePulse(1e-6))
+                    # ==========================================
+                    # Sequence 1: X90 -> (-Y180)^N
+                    # ==========================================
+                    self._add_reset(qubit_schedule, qubit.name, reset_type)
+                    qubit_schedule.add(X90(qubit=qubit.name, beta=beta_val))
+                    for _ in range(pulse_repetitions):
+                        qubit_schedule.add(Rxy(theta=180.0, phi=270.0, qubit=qubit.name, beta=beta_val))
+                    
+                    qubit_schedule.add(
+                        Measure(
+                            qubit.name, 
+                            coords={f"beta_{qubit.name}": beta_val, 
+                                    f"seq_idx_{qubit.name}": 1}, 
+                            acq_label=f"S_21_{qubit.name}"
+                        )
+                    )
+                    qubit_schedule.add(IdlePulse(4e-9))
 
-                # ==========================================
-                # Sequence 2: X90 -> (X180)^N (Reference)
-                # ==========================================
-                sched.add(Reset(qubit.name))
-                sched.add(X90(qubit=qubit.name, beta=beta_val))
-                for _ in range(pulse_repetitions):
-                    sched.add(X(qubit=qubit.name, beta=beta_val))
-                
-                sched.add(Measure(
-                    qubit.name, coords={f"beta_{qubit.name}": beta_val, f"seq_idx_{qubit.name}": 2}, 
-                    acq_channel=f"S_21_{qubit.name}"
-                ))
-                sched.add(IdlePulse(1e-6))
+                    # ==========================================
+                    # Sequence 2: X90 -> (X180)^N (Reference)
+                    # ==========================================
+                    self._add_reset(qubit_schedule, qubit.name, reset_type)
+                    qubit_schedule.add(X90(qubit=qubit.name, beta=beta_val))
+                    for _ in range(pulse_repetitions):
+                        qubit_schedule.add(X(qubit=qubit.name, beta=beta_val))
+                    
+                    qubit_schedule.add(
+                        Measure(
+                            qubit.name, 
+                            coords={f"beta_{qubit.name}": beta_val, 
+                                    f"seq_idx_{qubit.name}": 2}, 
+                            acq_label=f"S_21_{qubit.name}"
+                        )
+                    )
+                    qubit_schedule.add(IdlePulse(4e-9))
 
-        # 2. SAFETY: Return flux to 0V at the end of the schedule
-        sched.add(VoltageOffset(0.0, 0, port=qubit.ports.flux))
-        sched.add(IdlePulse(4e-9)) 
+            if parallel_reference is None:
+                parallel_reference = measurement_schedule.add(qubit_schedule)
+            else:
+                measurement_schedule.add(
+                    qubit_schedule,
+                    ref_op=parallel_reference,
+                    ref_pt="start",
+                )
 
-        return sched
+        schedule.add(measurement_schedule, rel_time=None)
+        self.beta = beta_sweep
+        self.schedule = schedule
+
+        return schedule
 
     # -------------------------------------------------------------------------
     # EXECUTION
     # -------------------------------------------------------------------------
-    def execute(self, beta_start: float = -2.0, beta_stop: float = 2.0, 
-                beta_npoints: int = 41, pulse_repetitions: int = 1, 
-                repetitions: int = 1000) -> None:
+    def run_measurement(
+        self, 
+        *,
+        repetitions: int,
+        reset_type: Literal["thermal", "active"] = "thermal",
+        beta_start: float, 
+        beta_stop: float, 
+        beta_npoints: int, 
+        pulse_repetitions: int,
+        timeout: int = 300,
+    ) -> Dataset:
+        """Build and acquire the complete beta sweep in one hardware run."""
+        self._apply_idle_flux_config()
+        schedule = self.build_schedule(
+            repetitions=repetitions,
+            reset_type=reset_type,
+            beta_start=beta_start,
+            beta_stop=beta_stop,
+            beta_npoints=beta_npoints,
+            pulse_repetitions=pulse_repetitions
+        )
         
-        self.multiplexed_schedule = Schedule("drag_calibration_multiplexed")
-        ref = None
-
-        for q in self.qubits:
-            sub_sched = self._create_single_qubit_schedule(
-                qubit=q, beta_start=beta_start, beta_stop=beta_stop, 
-                beta_npoints=beta_npoints, pulse_repetitions=pulse_repetitions, 
-                repetitions=repetitions
-            )
-            ref = self.multiplexed_schedule.add(sub_sched) if ref is None else self.multiplexed_schedule.add(sub_sched, ref_op=ref, ref_pt="start")
-            
-        self.dataset = self.hw_agent.run(self.multiplexed_schedule, timeout=TIMEOUT_TIME)
-
-    def compile(self): return self.hw_agent.compile(self.multiplexed_schedule)
+        self.dataset = self.hardware_agent.run(schedule, timeout=timeout)
+        self.results = {}
+        return self.dataset
 
     # -------------------------------------------------------------------------
     # ANALYSIS
     # -------------------------------------------------------------------------
-    def analyze(self) -> None:
+    def analysis(self):
         """
         Uses xarray to unpack the 2D sweep (seq_idx vs beta), globally PCA rotates 
         the data, fits linear polynomials to the 3 lines, and safely calculates 
         the mutual intersection (optimal DRAG beta).
         """
-        if self.dataset is None: return
-        self.analyses = {}
-
+        if self.dataset is None: 
+            raise RuntimeError("Call run_measurement() or simulated_data() first.")
+        
+        results = {}
         for q in self.qubits:
-            print(f"[{q.name}] Running 3-Line DRAG Analysis...")
             
-            betas = self.dataset[f"beta_{q.name}"].values
-            seq_idxs = self.dataset[f"seq_idx_{q.name}"].values
-            s21_raw = self.dataset[f"S_21_{q.name}"].values
-            
+            beta_name = f"beta_{q.name}"
+            seq_name = f"seq_idx_{q.name}"
+            s21_name = f"S_21_{q.name}"
+
+            # missing = {
+            #     name for name in (beta_name, seq_name, s21_name) if name not in self.dataset
+            # }
+            # if missing:
+            #     raise RuntimeError(
+            #         f"The dataset is missing {sorted(missing)} for {q.name}."
+            #     )
+
+            betas = self.dataset[beta_name].values
+            seq_idxs = self.dataset[seq_name].values
+            s21_raw = self.dataset[s21_name].values
             # Safely unpack Qblox structured arrays (real, imag)
             if s21_raw.dtype.names is not None:
                 if 'real' in s21_raw.dtype.names and 'imag' in s21_raw.dtype.names:
@@ -209,7 +332,7 @@ class MultiplexedDRAGCalibration(SingleQubitExperiment):
             except Exception as e:
                 print(f"  -> CRITICAL FIT FAILURE: {e}. Raw lines will still be plotted.")
 
-            self.analyses[q.name] = {
+            results[q.name] = {
                 'success': success, 
                 'optimal_beta': optimal_beta,
                 'unique_betas': unique_betas, 
@@ -217,18 +340,21 @@ class MultiplexedDRAGCalibration(SingleQubitExperiment):
                 'polys': polys,
                 'old_beta': getattr(q.rxy, 'beta', 0.0)
             }
+        self.results = results
+        return results
 
     # -------------------------------------------------------------------------
     # PLOTTING & UTILITIES
     # -------------------------------------------------------------------------
     def plot_analysis(self) -> None:
         """Plots the 3 DRAG pulse sequences and their mutual intersection point."""
-        if not self.analyses: return
+        if not self.results: 
+            raise RuntimeError("Call analysis() before plotting.")
         tuid = self.dataset.attrs.get('tuid', 'Unknown TUID')
 
         for q in self.qubits:
-            if q.name not in self.analyses: continue
-            res = self.analyses[q.name]
+            if q.name not in self.results: continue
+            res = self.results[q.name]
 
             fig, ax = plt.subplots(figsize=FIGURE_SIZE)
             betas = res['unique_betas']
@@ -246,7 +372,7 @@ class MultiplexedDRAGCalibration(SingleQubitExperiment):
                 ax.plot(fine_betas, np.polyval(res['polys'][2], fine_betas), '-', color='tab:pink', lw=2)
                 
                 # Plot optimal intersection
-                ax.axvline(res['optimal_beta'], color='r', linestyle='--', label=f"Opt Beta: {res['optimal_beta']:.4f}")
+                ax.axvline(res['optimal_beta'], color='r', linestyle='--', label=f"Opt Beta: {res['optimal_beta']/1e-9:.4f}")
                 y_opt = np.polyval(res['polys'][0], res['optimal_beta'])
                 ax.plot(res['optimal_beta'], y_opt, 'r*', markersize=12)
 
@@ -261,6 +387,7 @@ class MultiplexedDRAGCalibration(SingleQubitExperiment):
             ax.yaxis.set_major_formatter(formatter)
 
             fig.tight_layout()
+            self.figures[q.name] = fig
             plt.show()
 
 # # -------------------------------------------------------------------------
@@ -343,54 +470,19 @@ class MultiplexedDRAGCalibration(SingleQubitExperiment):
     @property
     def success(self) -> bool: return self.dataset is not None
 
-    def post_run(self, qubits_to_update: list | None = None) -> None:
+    def update_device(self) -> None:
         """Cleanly upgrades the device configuration with the new optimal beta."""
-        if not self.analyses: return
-        targets = [q.name if hasattr(q, 'name') else q for q in qubits_to_update] if qubits_to_update else [q.name for q in self.qubits]
+        if not self.results: 
+            raise RuntimeError("Call analysis() before updating the device.")
 
-        self.parameter_updates = {}
-        updated_qubits = []
-
-        for q in self.qubits:
-            if q.name not in targets or q.name not in self.analyses:
-                updated_qubits.append(q)
-                continue
-                
-            res = self.analyses[q.name]
-            if not res['success'] or np.isnan(res['optimal_beta']):
-                print(f"Warning: Fit failed for {q.name}, skipping update.")
-                updated_qubits.append(q)
-                continue
-
-            old_beta = res['old_beta']
-            new_beta = res['optimal_beta']
-
-            # Re-instantiate the element cleanly using Pydantic model dump
-            qubit_data = q.model_dump()
-            qubit_data["element_type"] = "FluxTunableTransmonElement"
-            
-            # Safely bypass Pydantic initialization restrictions
-            flux_params_dict = qubit_data.get("flux_params", {})
-            existing_crosstalk = flux_params_dict.pop("crosstalk_vector", {})
-            
-            new_q = FluxTunableTransmonElement(**qubit_data)
+        for qubit in self.qubits:
+            result = self.results[qubit.name]
+            if not result["success"]:
+                raise RuntimeError(f"Rabi fit failed for {qubit.name}.")
+            new_beta = result['optimal_beta']
 
             # Apply parameter updates
-            new_q.rxy.beta = new_beta
-            new_q.flux_params.crosstalk_vector = existing_crosstalk
-
-            # Swap elements in the hardware agent
-            self.hw_agent.quantum_device.remove_element(q.name)
-            self.hw_agent.quantum_device.add_element(new_q)
-
-            self.parameter_updates[q.name] = {
-                "beta": {"old": old_beta, "new": new_beta}
-            }
-
-            print(f"[{q.name}] DRAG Beta permanently updated: {old_beta/1e-9:.4f}e-9 -> {new_beta/1e-9:.4f}e-9")
-            updated_qubits.append(new_q)
-
-        self.qubits = updated_qubits
+            qubit.rxy.beta = new_beta
 
     @staticmethod
     def _get_si_prefix(values):

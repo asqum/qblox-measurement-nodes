@@ -43,9 +43,9 @@ from qblox_scheduler.operations.loop_domains import arange
 from qblox_scheduler.quantify_utils import gen_tuid
 from qblox_scheduler.schedules.schedule import estimate_instructions_len
 
-from dependencies.randomized_benchmarking.sequence_generator import randomized_benchmarking_sequence
-from dependencies.randomized_benchmarking.clifford_group import SingleQubitClifford
-from dependencies.randomized_benchmarking.clifford_decompositions import epstein_efficient_decomposition
+from qblox_lab.experiments.dependencies.randomized_benchmarking.sequence_generator import randomized_benchmarking_sequence
+from qblox_lab.experiments.dependencies.randomized_benchmarking.clifford_group import SingleQubitClifford
+from qblox_lab.experiments.dqblox_lab.experiments.ependencies.randomized_benchmarking.clifford_decompositions import epstein_efficient_decomposition
 
 from cal24_randomized_benchmarking import MultiplexedSingleQubitRB, TIMEOUT_TIME
 
@@ -91,7 +91,7 @@ class MultiplexedSingleQubitRBBatched(MultiplexedSingleQubitRB):
         target.add(Measure(
             qubit.name,
             coords={f"m_{qubit.name}": m, f"seed_{qubit.name}": seed_idx},
-            acq_channel=f"S_21_{qubit.name}",
+            acq_label=f"S_21_{qubit.name}",
             acq_protocol="ThresholdedAcquisition",
             bin_mode=BinMode.AVERAGE_APPEND,
         ))

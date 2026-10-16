@@ -9,9 +9,9 @@ from typing import Any, Literal, Mapping, Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 from qblox_scheduler import HardwareAgent, Schedule
-from qblox_scheduler.analysis.fitting_models import cos_func
-from qblox_scheduler.analysis.single_qubit_timedomain import RabiAnalysis
-from qblox_scheduler.experiments import SetHardwareOption, SetParameter
+from qblox_applications.qblox_scheduler.analysis.fitting_models import cos_func
+from qblox_applications.qblox_scheduler.analysis.single_qubit_timedomain import BaseRabiAnalysis
+from qblox_scheduler.segments import SetHardwareOption, SetParameter
 from qblox_scheduler.operations import ConditionalReset, IdlePulse, Measure, Reset, VoltageOffset, X
 from qblox_scheduler.operations.expressions import DType, Expression
 from qblox_scheduler.operations.loop_domains import arange, linspace
@@ -35,7 +35,7 @@ class RabiResult:
     pi_pulse_amplitude: float
     pi_pulse_duration: float
     success: bool
-    analysis_object: RabiAnalysis
+    analysis_object: BaseRabiAnalysis
 
 
 class Rabi:
@@ -137,6 +137,18 @@ class Rabi:
                 )
         return durations
 
+    def _apply_idle_flux_config(self) -> None:
+        """Ramp every flux-config qubit to its idle bias before pulsing.
+
+        Applies to *all* qubits listed in the flux config, not just the ones
+        being measured: the swept qubits need their own idle bias in place
+        before the schedule's ``SquarePulse`` flux pulses relative to it, and
+        every unmeasured qubit must be parked and left untouched.
+        """
+        if self.flux_config is None:
+            return
+        apply_flux_config(self.hardware_agent, self.flux_config)
+
     @staticmethod
     def _validate_even_spacing(values: tuple[float, ...], *, name: str) -> None:
         if len(values) < 3:
@@ -157,7 +169,7 @@ class Rabi:
         """Reset a qubit: fixed-duration thermal wait, or measurement-based active reset."""
         if reset_type == "active":
             schedule.add(
-                ConditionalReset(qubit_name, acq_channel=acq_channel or f"cond_{qubit_name}")
+                ConditionalReset(qubit_name, acq_label=acq_channel or f"cond_{qubit_name}")
             )
         else:
             schedule.add(Reset(qubit_name))
@@ -198,7 +210,7 @@ class Rabi:
                     f"drive_amplitude_{qubit.name}": drive_amplitude,
                     f"drive_duration_{qubit.name}": drive_duration,
                 },
-                acq_channel=f"S21_{qubit.name}",
+                acq_label=f"S21_{qubit.name}",
             )
         )
         schedule.add(IdlePulse(4e-9))
@@ -351,6 +363,7 @@ class Rabi:
         timeout: int = 300,
     ) -> Dataset:
         """Build and execute the complete Rabi sweep in one hardware run."""
+        self._apply_idle_flux_config()
         schedule = self.build_schedule(
             drive_amplitudes=drive_amplitudes,
             drive_durations=drive_durations,
@@ -361,12 +374,6 @@ class Rabi:
             readout_output_attenuation=readout_output_attenuation,
             readout_input_attenuation=readout_input_attenuation,
         )
-        if self.flux_config is not None:
-            apply_flux_config(
-                self.hardware_agent,
-                self.flux_config,
-                qubits=self.qubit_names,
-            )
         self.dataset = self.hardware_agent.run(schedule, timeout=timeout)
         self.analysis_mode = None
         self.results = {}
@@ -618,7 +625,7 @@ class Rabi:
                 units=coordinate_units,
             )
 
-            analysis_object = RabiAnalysis(
+            analysis_object = BaseRabiAnalysis(
                 dataset=analysis_dataset,
                 plot_figures=False,
             )

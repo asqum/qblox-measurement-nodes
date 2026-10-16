@@ -27,7 +27,7 @@ from typing import Any, Literal, Mapping, Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 from qblox_scheduler import HardwareAgent, Schedule
-from qblox_scheduler.analysis.readout_calibration_analysis import ReadoutCalibrationAnalysis
+from qblox_applications.qblox_scheduler.analysis.readout_calibration_analysis import BaseReadoutCalibrationAnalysis
 from qblox_scheduler.operations import ConditionalReset, Measure, Reset, X
 from qblox_scheduler.operations.expressions import DType
 from qblox_scheduler.operations.loop_domains import arange, linspace
@@ -53,7 +53,7 @@ class ReadoutPowerOptimizationResult:
     fidelity_excited: float
     readout_fidelity: float
     success: bool
-    analysis_object: ReadoutCalibrationAnalysis | None
+    analysis_object: BaseReadoutCalibrationAnalysis | None
 
 
 class ReadoutPowerOptimization:
@@ -93,7 +93,7 @@ class ReadoutPowerOptimization:
         """Reset a qubit: fixed-duration thermal wait, or measurement-based active reset."""
         if reset_type == "active":
             schedule.add(
-                ConditionalReset(qubit_name, acq_channel=acq_channel or f"cond_{qubit_name}")
+                ConditionalReset(qubit_name, acq_label=acq_channel or f"cond_{qubit_name}")
             )
         else:
             schedule.add(Reset(qubit_name))
@@ -192,7 +192,7 @@ class ReadoutPowerOptimization:
                                 f"amplitude_{qubit.name}": amplitude,
                                 f"state_{qubit.name}": 0,
                             },
-                            acq_channel=f"S21_{qubit.name}",
+                            acq_label=f"S21_{qubit.name}",
                         )
                     )
 
@@ -207,7 +207,7 @@ class ReadoutPowerOptimization:
                                 f"amplitude_{qubit.name}": amplitude,
                                 f"state_{qubit.name}": 1,
                             },
-                            acq_channel=f"S21_{qubit.name}",
+                            acq_label=f"S21_{qubit.name}",
                         )
                     )
 
@@ -441,7 +441,7 @@ class ReadoutPowerOptimization:
             analysis_dataset["y0"].attrs.update(name="I", units="V")
             analysis_dataset["y1"].attrs.update(name="Q", units="V")
 
-            analysis_object = ReadoutCalibrationAnalysis(dataset=analysis_dataset, plot_figures=False)
+            analysis_object = BaseReadoutCalibrationAnalysis(dataset=analysis_dataset, plot_figures=False)
             analysis_object.process_data()
             analysis_object.run_fitting()
             analysis_object.analyze_fit_results()

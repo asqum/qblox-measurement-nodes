@@ -183,7 +183,7 @@ class ResonatorCouplerFluxSpectroscopy:
                             qubit.name,
                             freq=frequency,
                             coords=coordinates,
-                            acq_channel=f"S21_{qubit.name}",
+                            acq_label=f"S21_{qubit.name}",
                         )
                     )
                     qubit_schedule.add(IdlePulse(10e-6))

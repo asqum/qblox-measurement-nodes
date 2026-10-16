@@ -11,9 +11,11 @@ from typing import Any, Literal, Mapping, Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 from qblox_scheduler import HardwareAgent, Schedule
-from qblox_scheduler.analysis.fitting_models import lorentzian_func
-from qblox_scheduler.analysis.spectroscopy_analysis import QubitSpectroscopyAnalysis
-from qblox_scheduler.experiments import SetHardwareOption, SetParameter
+from qblox_applications.qblox_scheduler.analysis.fitting_models import lorentzian_func
+from qblox_applications.qblox_scheduler.analysis.spectroscopy_analysis import (
+    BaseQubitSpectroscopyAnalysis,
+)
+from qblox_scheduler.segments import SetHardwareOption, SetParameter
 from qblox_scheduler.operations import (
     IdlePulse,
     Measure,
@@ -57,7 +59,7 @@ class BroadbandQubitSpectroscopyResult:
     frequency: float
     linewidth: float
     success: bool
-    analysis_object: QubitSpectroscopyAnalysis
+    analysis_object: BaseQubitSpectroscopyAnalysis
 
 
 class BroadbandQubitSpectroscopy:
@@ -200,6 +202,18 @@ class BroadbandQubitSpectroscopy:
         schedule.add(pulse_schedule, rel_time=None)
         return schedule
 
+    def _apply_idle_flux_config(self) -> None:
+        """Ramp every flux-config qubit to its idle bias before pulsing.
+
+        Applies to *all* qubits listed in the flux config, not just the ones
+        being measured: the swept qubits need their own idle bias in place
+        before the schedule's ``SquarePulse`` flux pulses relative to it, and
+        every unmeasured qubit must be parked and left untouched.
+        """
+        if self.flux_config is None:
+            return
+        apply_flux_config(self.hardware_agent, self.flux_config)
+
     def build_schedule(
         self,
         *,
@@ -297,7 +311,7 @@ class BroadbandQubitSpectroscopy:
                     ),
                     rel_time=None,
                 )
-
+                
                 qubit_schedule = Schedule(
                     f"broadband_qubit_spectroscopy_{qubit.name}_"
                     f"branch_{branch.index + 1}"
@@ -330,9 +344,10 @@ class BroadbandQubitSpectroscopy:
                             Measure(
                                 qubit.name,
                                 coords={f"frequency_{qubit.name}": frequency},
-                                acq_channel=f"S21_{qubit.name}",
+                                acq_label=f"S21_{qubit.name}",
                             )
                         )
+
                         qubit_schedule.add(IdlePulse(4e-9))
 
                 if parallel_reference is None:
@@ -391,7 +406,7 @@ class BroadbandQubitSpectroscopy:
                     )
                 )
                 qubit_schedule.add(
-                    Measure(qubit.name, coords={}, acq_channel=f"S21_{qubit.name}")
+                    Measure(qubit.name, coords={}, acq_label=f"S21_{qubit.name}")
                 )
                 qubit_schedule.add(IdlePulse(4e-9))
 
@@ -427,6 +442,7 @@ class BroadbandQubitSpectroscopy:
         ``frequency_center`` defaults to each qubit's own configured ``f01``
         when omitted (see ``build_schedule``).
         """
+        self._apply_idle_flux_config()
         schedule = self.build_schedule(
             frequency_center=frequency_center,
             frequency_width=frequency_width,
@@ -443,16 +459,10 @@ class BroadbandQubitSpectroscopy:
         )
         restored_los = self._restore_lo_frequencies
 
-        if self.flux_config is not None:
-            apply_flux_config(
-                self.hardware_agent,
-                self.flux_config,
-                qubits=self.qubit_names,
-            )
-
         self.dataset = None
         try:
             self.dataset = self.hardware_agent.run(schedule, timeout=timeout)
+
         except BaseException:
             try:
                 self.hardware_agent.run(
@@ -635,7 +645,7 @@ class BroadbandQubitSpectroscopy:
             analysis_dataset["y0"].attrs.update(name="Magnitude", units="V")
             analysis_dataset["x0"].attrs.update(name="Frequency", units="Hz")
 
-            analysis_object = QubitSpectroscopyAnalysis(
+            analysis_object = BaseQubitSpectroscopyAnalysis(
                 dataset=analysis_dataset,
                 plot_figures=False,
             )

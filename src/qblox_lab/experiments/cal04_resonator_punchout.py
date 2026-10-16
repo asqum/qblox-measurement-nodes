@@ -9,7 +9,7 @@ from typing import Any, Mapping, Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 from qblox_scheduler import HardwareAgent, Schedule
-from qblox_scheduler.experiments import SetHardwareOption
+from qblox_scheduler.segments import SetHardwareOption
 from qblox_scheduler.operations import IdlePulse, Measure
 from qblox_scheduler.operations.expressions import DType
 from qblox_scheduler.operations.loop_domains import arange, linspace
@@ -168,7 +168,7 @@ class ResonatorPunchout:
                                     f"frequency_{qubit.name}": frequency,
                                     f"amplitude_{qubit.name}": amplitude,
                                 },
-                                acq_channel=f"S21_{qubit.name}",
+                                acq_label=f"S21_{qubit.name}",
                             )
                         )
                         qubit_schedule.add(IdlePulse(10e-6))
