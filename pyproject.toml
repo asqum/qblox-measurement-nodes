@@ -17,7 +17,7 @@ classifiers = [
 dependencies = [
     "matplotlib>=3.7",
     "numpy>=1.24",
-    "qblox-applications>=2026.9.0",
+    "qblox-applications @ git+https://gitlab.com/qblox/packages/software/qblox-applications.git@771b6c4ba0820a9659760fd80bf2330dd5848b2b",
     "qblox-scheduler>=1.0.0b6,<2",
     "xarray>=2023.1",
 ]
