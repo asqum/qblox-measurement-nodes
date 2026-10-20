@@ -23,8 +23,8 @@
             "sequence_to_file": false,
             "ref": "internal",
             "ip": "10.21.19.201",
-            "port": 9613,
-            "module_base_port": 25300
+            "port": 59925,
+            "module_base_port": 59900
         }
     },
     "hardware_options": {
