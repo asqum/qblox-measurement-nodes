@@ -22,7 +22,9 @@
             },
             "sequence_to_file": false,
             "ref": "internal",
-            "ip": "192.168.1.13"
+            "ip": "10.21.19.201",
+            "port": 59925,
+            "module_base_port": 59900
         }
     },
     "hardware_options": {
