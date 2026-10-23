@@ -9,13 +9,21 @@ from typing import Any, Literal, Mapping, Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 from qblox_scheduler import HardwareAgent, Schedule
-from qblox_scheduler.analysis.fitting_models import cos_func
-from qblox_scheduler.analysis.single_qubit_timedomain import RabiAnalysis
-from qblox_scheduler.experiments import SetHardwareOption, SetParameter
+try:
+    from qblox_scheduler.experiments import SetHardwareOption, SetParameter
+except ModuleNotFoundError:  # Qblox Scheduler >= 1.0
+    from qblox_scheduler.segments.parameters import SetHardwareOption, SetParameter
 from qblox_scheduler.operations import IdlePulse, Measure, Reset, VoltageOffset
 from qblox_scheduler.operations.expressions import DType, Expression
 from qblox_scheduler.operations.loop_domains import arange, linspace
 from xarray import Dataset
+
+try:
+    from qblox_scheduler.analysis.fitting_models import cos_func
+    from qblox_scheduler.analysis.single_qubit_timedomain import RabiAnalysis
+except ModuleNotFoundError:  # Qblox Scheduler >= 1.0
+    from quantify_core.analysis.fitting_models import cos_func
+    from quantify_core.analysis.single_qubit_timedomain import RabiAnalysis
 
 from qblox_lab.config.hardware import apply_flux_config, load_flux_config
 

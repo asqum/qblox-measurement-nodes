@@ -4,7 +4,8 @@ A minimal repository for single-qubit calibration with Qblox Scheduler. It inclu
 readout time-of-flight calibration, standard and segmented broadband resonator
 spectroscopy, resonator punchout, resonator flux spectroscopy, and segmented
 broadband and power-dependent qubit spectroscopy, Rabi calibration, and qubit
-energy-relaxation measurement.
+energy-relaxation, dephasing, pulse-shape, gate-diagnostic, and randomized-
+benchmarking measurements.
 
 The code uses public scheduler interfaces: `HardwareAgent`, `Schedule`, operations,
 `SetParameter`, `SetHardwareOption`, `ResonatorModel`,
@@ -36,6 +37,12 @@ src/qblox_lab/
                                       QubitSpectroscopyIntrinsicWidth experiment
     cal08_rabi.py                     Rabi experiment
     cal09_energy_relaxation.py        EnergyRelaxation experiment
+    cal10_ramsey.py                   Ramsey experiment
+    cal11_echo.py                     Echo experiment
+    cal12_drag.py                     DragCalibration experiment
+    cal13_allxy.py                    AllXY experiment
+    cal14_single_qubit_randomized_benchmarking.py
+                                      SingleQubitRandomizedBenchmarking experiment
 notebooks/
   run_time_of_flight.ipynb             Time-of-flight run parameters and execution
   run_broadband_resonator_spectroscopy.ipynb
@@ -50,6 +57,12 @@ notebooks/
                                       Power-dependent qubit scan and analysis
   run08_rabi.ipynb                    Amplitude/time Rabi calibration
   run09_energy_relaxation.ipynb       Qubit T1 measurement and analysis
+  run10_ramsey.ipynb                  Ramsey T2* and frequency refinement
+  run11_echo.ipynb                    Hahn-echo T2 measurement
+  run12_drag.ipynb                    DRAG beta calibration
+  run13_allxy.ipynb                   AllXY gate diagnostic
+  run14_single_qubit_randomized_benchmarking.ipynb
+                                      Single-qubit Clifford RB
 ```
 
 The Python modules contain reusable experiment and configuration logic. All values
@@ -60,8 +73,12 @@ that normally change between measurements are defined in the notebook.
 Activate the environment containing Qblox Scheduler, then install this repository:
 
 ```powershell
-C:\Users\yi.huang\anaconda3\envs\qse\python.exe -m pip install -e . --no-deps
+C:\Users\yi.huang\anaconda3\envs\qse\python.exe -m pip install -e .
 ```
+
+The repository pins `qblox-scheduler==1.0.0b8`. Scheduler 1.0.1 moved the
+superconducting `BasicTransmonElement` into a separate applications distribution;
+without that distribution it cannot load this repository's device configuration.
 
 Open [run_resonator_spectroscopy.ipynb](notebooks/run_resonator_spectroscopy.ipynb)
 with the `qse` Jupyter kernel.
@@ -81,11 +98,11 @@ samples onto a complex grid and tracks the minimum-transmission frequency at eac
 amplitude. Selecting and saving a final readout amplitude remains an explicit user
 choice.
 
-The cal01, cal02, cal03, cal04, cal06, cal07, cal08, and cal09 experiment
-constructors accept an optional `flux_config`. When it is supplied, the selected
-qubits are ramped to their stored biases immediately before measurement. When it is
-`None`, those experiments do not resolve, read, set, or restore any flux parameter,
-so the live hardware state is left unchanged.
+The cal01-cal04 and cal06-cal14 experiment constructors accept an optional
+`flux_config`. When it is supplied, the selected qubits are ramped to their stored
+biases immediately before measurement. When it is `None`, those experiments do not
+resolve, read, set, or restore any flux parameter, so the live hardware state is
+left unchanged.
 
 For a two-dimensional resonator-versus-flux scan, open
 [run_resonator_flux_spectroscopy.ipynb](notebooks/run_resonator_flux_spectroscopy.ipynb).
@@ -145,6 +162,40 @@ Simulated data uses the same public `exp_decay_func`, with configurable T1,
 baseline, contrast, stretch factor, phase, noise, and seed. Since the scheduler's
 `BasicTransmonElement` has no T1 field, the fitted value is reported in the result
 object and is not written into the device configuration.
+
+For Ramsey frequency refinement and dephasing, open
+[run10_ramsey.ipynb](notebooks/run10_ramsey.ipynb). The real-time schedule advances
+the second pi/2 pulse phase according to the artificial detuning. Public
+`RamseyAnalysis` extracts `T2*`, the physical detuning, and a refined `f01`; only
+the refined frequency can be applied to a new device configuration. Simulation uses
+the same public damped-oscillation model.
+
+For Hahn-echo dephasing, open [run11_echo.ipynb](notebooks/run11_echo.ipynb). The
+schedule places an X pulse halfway between two X90 pulses and sweeps their total
+separation. Public `EchoAnalysis` extracts `T2 echo`, and simulation uses its
+exponential-decay model. The result is reported but not persisted because the device
+schema has no coherence-time field.
+
+For pulse-shape calibration, open [run12_drag.ipynb](notebooks/run12_drag.ipynb).
+The node measures the `X-Y90` and `Y-X90` sequences across a real-time DRAG-beta
+sweep. Their projected linear-response intersection determines `rxy.beta`, which can
+be saved to a new device file. An optional experiment-scoped drive amplitude leaves
+waveform headroom for the derivative quadrature; when it is reduced, drive attenuation
+can be adjusted to preserve the intended physical rotation.
+
+For the standard 21-pair gate diagnostic, open
+[run13_allxy.ipynb](notebooks/run13_allxy.ipynb). Public Scheduler `Rxy` operations
+construct the same sequence set used by `allxy_sched`, and public `AllXYAnalysis`
+normalizes the IQ data, plots the ideal staircase, and reports its mean deviation.
+AllXY is diagnostic and does not automatically change a device parameter.
+
+For reference single-qubit Clifford randomized benchmarking, open
+[run14_single_qubit_randomized_benchmarking.ipynb](notebooks/run14_single_qubit_randomized_benchmarking.ipynb).
+Cal14 generates the 24 Clifford elements from public `Rxy` gates, appends the exact
+recovery Clifford, acquires all lengths and random circuits in one top-level run, and
+fits `A p**m + B`. It reports the average Clifford fidelity, error per Clifford, and
+an estimated error per primitive pulse. The random seed makes the circuit set
+reproducible. RB is a performance measurement and does not mutate the device.
 
 The broadband resonator experiment can also generate data by calling
 `dataset = experiment.simulated_data()`. Its simulation uses Qblox Scheduler's public
